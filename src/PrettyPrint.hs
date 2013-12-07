@@ -5,12 +5,12 @@
  #-}
 {-# OPTIONS_GHC -Wall -fno-warn-unused-matches -fno-warn-name-shadowing #-}
 
--- | A Pretty Printer. 
+-- | A Pretty Printer.
 module PrettyPrint(Disp(..), D(..))  where
 
 import Syntax
 import Unbound.LocallyNameless hiding (empty,Data,Refl)
-import Unbound.LocallyNameless.Alpha 
+import Unbound.LocallyNameless.Alpha
 import Unbound.LocallyNameless.Ops
 
 import Control.Monad.Identity
@@ -24,7 +24,7 @@ import qualified Data.Set as S
 -- | The 'Disp' class governs types which can be turned into 'Doc's
 class Disp d where
   disp :: d -> Doc
-  
+
   default disp :: (Display d, Alpha d) => d -> Doc
   disp = cleverDisp
 
@@ -37,11 +37,11 @@ cleverDisp d =
   runIdentity (runReaderT (display d) initDI)
 
 
-instance Disp Term 
-instance Rep a => Disp (Name a) 
-instance Disp Telescope 
-instance Disp Pattern 
-instance Disp Match 
+instance Disp Term
+instance Rep a => Disp (Name a)
+instance Disp Telescope
+instance Disp Pattern
+instance Disp Match
 
 instance Disp String where
   disp = text
@@ -76,7 +76,7 @@ data D = DS String -- ^ String literal
 
 instance Disp D where
   disp (DS s) = text s
-  disp (DD d) = nest 2 $ disp d 
+  disp (DD d) = nest 2 $ disp d
                 -- might be a hack to do the nesting here???
 
 instance Disp [D] where
@@ -102,9 +102,9 @@ instance Disp ModuleImport where
 
 instance Disp [Decl] where
   disp = vcat . map disp
-  
+
 instance Disp Decl where
-  disp (Def n r@(Ind _ bnd _)) | 
+  disp (Def n r@(Ind _ bnd _)) |
       name2String(fst(fst(unsafeUnbind bnd)))==name2String n = disp r
   disp (Def n term) = disp n <+> text "=" <+> disp term
 
@@ -126,18 +126,18 @@ instance Disp Decl where
 
 
 instance Disp ConstructorDef where
-  disp (ConstructorDef _ c Empty) = text c 
+  disp (ConstructorDef _ c Empty) = text c
   disp (ConstructorDef _ c tele)  = text c <+> text "of" <+> disp tele
-  
+
 
 -------------------------------------------------------------------------
 -- The Display class
 -------------------------------------------------------------------------
 -- | The data structure for information about the display
--- 
+--
 data DispInfo = DI
   {
-  showAnnots :: Bool,         -- ^ should we show the annotations?  
+  showAnnots :: Bool,         -- ^ should we show the annotations?
   dispAvoid  :: S.Set AnyName   -- ^ names that have been used
   }
 
@@ -150,7 +150,7 @@ instance LFresh (Reader DispInfo) where
                       (map (makeName s) [0..]))
   getAvoids = dispAvoid <$> ask
   avoid names = local upd where
-     upd di = di { dispAvoid = 
+     upd di = di { dispAvoid =
                       (S.fromList names) `S.union` (dispAvoid di) }
 
 -- | An empty 'DispInfo' context
@@ -167,7 +167,7 @@ type M a = (ReaderT DispInfo Identity) a
 class (Alpha t) => Display t where
   -- | Convert a value to a 'Doc'.
   display  :: t -> M Doc
-  
+
 instance Display String where
   display = return . text
 instance Display Int where
@@ -199,15 +199,15 @@ instance Display Annot where
   display (Annot Nothing)  = return $ empty
   display (Annot (Just x)) = do
     st <- ask
-    if (showAnnots st) then 
+    if (showAnnots st) then
          (text ":" <+>) <$> (display x)
       else return $ empty
 
 instance Display Arg where
   display arg@(Arg ep t) = do
     st <- ask
-    let annotParens = if showAnnots st 
-                   then mandatoryBindParens 
+    let annotParens = if showAnnots st
+                   then mandatoryBindParens
                    else bindParens
     let wraparg (Arg ep x) = case x of
               Var _       -> bindParens ep
@@ -218,19 +218,19 @@ instance Display Arg where
               TyBool      -> bindParens ep
               LitBool b   -> bindParens ep
               Sigma _     -> bindParens ep
-              
+
               Pos _ a     -> wraparg (Arg ep a)
 
               DCon _ [] _ -> annotParens ep
               Prod _ _ _  -> annotParens ep
-              TrustMe _   -> annotParens ep              
+              TrustMe _   -> annotParens ep
               Refl _      -> annotParens ep
               OrdAx _     -> annotParens ep
-              
-              _           -> mandatoryBindParens ep 
-    wraparg arg <$> display t 
 
- 
+              _           -> mandatoryBindParens ep
+    wraparg arg <$> display t
+
+
 
 
 instance Display Term where
@@ -249,9 +249,9 @@ instance Display Term where
     dannot <- display annot
     return $ dn <+> hsep dargs <+> dannot
 
-  display (Type n) = if n == 0 then 
+  display (Type n) = if n == 0 then
                        return $ text "Type"
-                     else                       
+                     else
                        return $ text "Type" <+> (text $ show n)
 
   display (Pi ep bnd) = do
@@ -262,7 +262,7 @@ instance Display Term where
         let lhs = mandatoryBindParens ep $
               if (n `elem` fv b) then
                 (dn <+> colon <+> da)
-              else 
+              else
                 da
         return $ lhs <+> text "->" <+> db
 
@@ -275,19 +275,19 @@ instance Display Term where
         let lhs = mandatoryBindParens ep $
               if (n `elem` fv b) then
                 (dn <+> colon <+> da)
-              else 
+              else
                 da
-        return $ lhs <+> text "|" <+> dc <+> text "->" <+> db 
+        return $ lhs <+> text "|" <+> dc <+> text "->" <+> db
 
   display a@(Lam ep b) = do
     (binds, body) <- gatherBinders a
     return $ hang (sep binds) 2 body
 
   display (Smaller a b) = do
-    da <- display a 
+    da <- display a
     db <- display b
     return $ da <+> text "<" <+> db
-    
+
   display (OrdAx ann) = do
     dann <- display ann
     return $ text "ord" <+> dann
@@ -301,7 +301,7 @@ instance Display Term where
       dann <- display annot
       return $ text "ind" <+> dn <+> bindParens ep dx <+> text "="
                <+> db <+> dann
-  
+
 
   display (App f x) = do
      df <- display f
@@ -314,7 +314,7 @@ instance Display Term where
             Ann _ _       -> id
             TrustMe _     -> id
             _             -> parens
-     return $ wrapf f df <+> dx             
+     return $ wrapf f df <+> dx
 
   display (Paren e) = do
      de <- display e
@@ -338,8 +338,8 @@ instance Display Term where
      dalts <- mapM display alts
      dannot <- display annot
      return $ text "case" <+> dscrut <+> text "of" $$
-          (nest 2 $ vcat $ dalts) <+> dannot              
-         
+          (nest 2 $ vcat $ dalts) <+> dannot
+
   display (Subst a b mbnd) = do
       da  <- display a
       db  <- display b
@@ -357,39 +357,39 @@ instance Display Term where
       db <- display b
       return $ da <+> text "=" <+> db
   display (Refl mty) = do
-    da <- display mty 
+    da <- display mty
     return $ text "refl" <+> da
 
   display (Contra ty mty)  = do
      dty <- display ty
-     da  <- display mty 
+     da  <- display mty
      return $ text "contra" <+> dty <+> da
-     
+
   display (Ann a b)    = do
     da <- display a
     db <- display b
     return $ parens (da <+> text ":" <+> db)
 
   display (TrustMe ma)  = do
-    da <- display ma 
+    da <- display ma
     return $ text "TRUSTME" <+> da
-    
-  display (Sigma bnd) = 
+
+  display (Sigma bnd) =
     lunbind bnd $ \ ((x,unembed->tyA),tyB) -> do
       dx <- display x
       dA <- display tyA
       dB <- display tyB
-      return $ text "{" <+> dx <+> text ":" <+> dA 
+      return $ text "{" <+> dx <+> text ":" <+> dA
         <+> text "|" <+> dB <+> text "}"
   display (Prod a b ann) = do
     da <- display a
     db <- display b
-    dann <- display ann 
+    dann <- display ann
     return $ parens (da <+> text "," <+> db) <+> dann
-    
+
   display (Pcase a bnd ann) = do
-    da <- display a 
-    dann <- display ann 
+    da <- display a
+    dann <- display ann
     lunbind bnd $ \ ((x,y), body) -> do
       dx <- display x
       dy <- display y
@@ -397,20 +397,20 @@ instance Display Term where
       return $ text "pcase" <+> da <+> text "of"
         <+> text "(" <+> dx <+> text "," <+> dy <+> text ")"
         <+> text "->" <+> dbody <+> dann
-    
-  display (TyBool) = return $ text "Bool"  
+
+  display (TyBool) = return $ text "Bool"
   display (LitBool b) = return $ if b then text "True" else text "False"
   display (If a b c ann) = do
     da <- display a
     db <- display b
     dc <- display c
-    dann <- display ann    
+    dann <- display ann
     return $ text "if" <+> da <+> text "then" <+> db
                 <+> text "else" <+> dc <+> dann
-    
-  display (TyUnit) = return $ text "One"  
+
+  display (TyUnit) = return $ text "One"
   display (LitUnit) = return $ text "tt"
-  
+
 instance Display Match where
   display (Match bd) =
     lunbind bd $ \ (pat, ubd) -> do
@@ -421,7 +421,7 @@ instance Display Match where
 instance Display Pattern where
   display (PatCon c []) = (display c)
 
-  display (PatCon c args) = 
+  display (PatCon c args) =
       parens <$> ((<+>) <$> (display c) <*> (hsep <$> (mapM display args)))
   display (PatVar x) = display x
 
@@ -435,7 +435,7 @@ instance Disp Arg where
 instance Display Telescope where
   display Empty = return empty
   display (Cons ep bnd) = goTele ep bnd
-    
+
 goTele :: (IsEmbed t, Alpha t, Display t1,
            Display (Embedded t), Display t2) =>
           Epsilon -> Rebind (t1, t) t2 -> M Doc
@@ -447,21 +447,21 @@ goTele ep bnd = do
       return $ mandatoryBindParens ep (dn <+> colon <+> dty) <+> dtele
 
 gatherBinders :: Term -> M ([Doc], Doc)
-gatherBinders (Lam ep b) = 
+gatherBinders (Lam ep b) =
    lunbind b $ \((n,unembed->ma), body) -> do
       dn <- display n
       dt <- display ma
       (rest, body) <- gatherBinders body
       return $ (text "\\" <> bindParens ep (dn <+> dt) <+> text "." : rest, body)
-gatherBinders (Ind ep binding ann) = 
+gatherBinders (Ind ep binding ann) =
   lunbind binding $ \ ((n,x),body) -> do
       dn <- display n
       dx <- display x
       (rest,body) <- gatherBinders body
-      return (text "ind" <+> dn <+> bindParens ep dx <+> text "=" : rest, 
+      return (text "ind" <+> dn <+> bindParens ep dx <+> text "=" : rest,
               body)
 
-gatherBinders body = do 
+gatherBinders body = do
   db <- display body
   return ([], db)
 

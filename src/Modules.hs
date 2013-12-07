@@ -12,7 +12,7 @@ import Parser(parseModuleFile, parseModuleImports)
 import Unbound.LocallyNameless
 
 import Text.ParserCombinators.Parsec.Error
-import Control.Applicative 
+import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State.Lazy
 import System.FilePath
@@ -24,7 +24,7 @@ import Data.List(nub,(\\))
 -- transitive dependency. It returns the list of parsed modules, with all
 -- modules appearing after its dependencies.
 getModules
-  :: (Functor m, MonadError ParseError m, MonadIO m) => 
+  :: (Functor m, MonadError ParseError m, MonadIO m) =>
      [FilePath] -> String -> m [Module]
 getModules prefixes top = do
   toParse <- gatherModules prefixes [ModuleImport $ string2Name top]
@@ -32,7 +32,7 @@ getModules prefixes top = do
     mapM reparse toParse
 
 data ModuleInfo = ModuleInfo {
-                    modInfoName     :: MName, 
+                    modInfoName     :: MName,
                     modInfoFilename :: String,
                     modInfoImports  :: [ModuleImport]
                   }
@@ -81,7 +81,7 @@ getModuleFileName prefixes modul = do
      else return $ head files
 
 -- | Fully parse a module (not just the imports).
-reparse :: (MonadError ParseError m, MonadIO m, MonadState ConstructorNames m) => 
+reparse :: (MonadError ParseError m, MonadIO m, MonadState ConstructorNames m) =>
             ModuleInfo -> m Module
 reparse (ModuleInfo _ fileName _) = do
   cnames <- get
