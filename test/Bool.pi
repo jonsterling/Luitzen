@@ -1,0 +1,19 @@
+module Boolean where
+
+data Boolean : Type where
+  T
+  F
+
+not : Boolean -> Boolean
+ind not x = case x of
+  T -> F
+  F -> T
+
+id : Boolean -> Boolean
+id = \x . x
+
+notnot : Boolean -> Boolean
+notnot = \x. not (not x)
+
+test : not (not F) = F
+test = refl
