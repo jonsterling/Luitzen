@@ -279,9 +279,8 @@ patternMatches :: Arg -> Pattern -> TcMonad [(TName, Term)]
 patternMatches (Arg _ t) (PatVar x) = return [(x, t)]
 patternMatches (Arg Runtime t) pat@(PatCon d' pats) = do
   nf <- whnf t
-  case nf of 
-    (DCon d [] _) -> return []
-    (DCon d args _) | d == d' -> 
+  case nf of
+    (DCon d args _) | d == d' ->
        concat <$> zipWithM patternMatches args (map fst pats)
     _ -> err [DS "arg", DD nf, DS "doesn't match pattern", DD pat]
 patternMatches (Arg Erased _) pat@(PatCon _ _) = do
