@@ -37,6 +37,7 @@ import Text.Parsec (Column,sourceColumn, setSourceColumn)
 import Text.Parsec.Prim
 import Text.Parsec.Char
 import Text.Parsec.Combinator
+import Control.Applicative ((<$>), (<*>))
 
 -----------------------------------------------------------
 -- Language Definition
@@ -391,10 +392,10 @@ makeTokenParser languageDef open sep close
     -----------------------------------------------------------
     -- Bracketing
     -----------------------------------------------------------
-    parens p        = between (symbol "(") (symbol ")") p
-    braces p        = between (symbol "{") (symbol "}") p
-    angles p        = between (symbol "<") (symbol ">") p
-    brackets p      = between (symbol "[") (symbol "]") p
+    parens        = between (symbol "(") (symbol ")")
+    braces        = between (symbol "{") (symbol "}")
+    angles        = between (symbol "<") (symbol ">")
+    brackets      = between (symbol "[") (symbol "]")
 
     semi            = symbol ";"
     comma           = symbol ","
@@ -476,7 +477,7 @@ makeTokenParser languageDef open sep close
 
 
     -- escape code tables
-    escMap          = zip ("abfnrtv\\\"\'") ("\a\b\f\n\r\t\v\\\"\'")
+    escMap          = zip "abfnrtv\\\"\'" "\a\b\f\n\r\t\v\\\"\'"
     asciiMap        = zip (ascii3codes ++ ascii2codes) (ascii3 ++ ascii2)
 
     ascii2codes     = ["BS","HT","LF","VT","FF","CR","SO","SI","EM",
@@ -495,7 +496,7 @@ makeTokenParser languageDef open sep close
     -----------------------------------------------------------
     -- Numbers
     -----------------------------------------------------------
-    naturalOrFloat  = lexeme (natFloat) <?> "number"
+    naturalOrFloat  = lexeme natFloat <?> "number"
 
     float           = lexeme floating   <?> "float"
     integer         = lexeme int        <?> "integer"
@@ -503,40 +504,26 @@ makeTokenParser languageDef open sep close
 
 
     -- floats
-    floating        = do{ n <- decimal
-                        ; fractExponent n
-                        }
+    floating        = decimal >>= fractExponent
 
+    natFloat        = (char '0' >> zeroNumFloat) <|> decimalFloat
 
-    natFloat        = do{ char '0'
-                        ; zeroNumFloat
-                        }
-                      <|> decimalFloat
-
-    zeroNumFloat    =  do{ n <- hexadecimal <|> octal
-                         ; return (Left n)
-                         }
+    zeroNumFloat    =  Left <$> (hexadecimal <|> octal)
                     <|> decimalFloat
                     <|> fractFloat 0
                     <|> return (Left 0)
 
     decimalFloat    = do{ n <- decimal
-                        ; option (Left n)
-                                 (fractFloat n)
+                        ; option (Left n) (fractFloat n)
                         }
 
-    fractFloat n    = do{ f <- fractExponent n
-                        ; return (Right f)
-                        }
+    fractFloat n    = Right <$> fractExponent n
 
     fractExponent n = do{ fract <- fraction
                         ; expo  <- option 1.0 exponent'
                         ; return ((fromInteger n + fract)*expo)
                         }
-                    <|>
-                      do{ expo <- exponent'
-                        ; return ((fromInteger n)*expo)
-                        }
+                    <|> (fromInteger n *) <$> exponent'
 
     fraction        = do{ char '.'
                         ; digits <- many1 digit <?> "fraction"
@@ -596,20 +583,15 @@ makeTokenParser languageDef open sep close
     operator =
         lexeme $ try $
         do{ name <- oper
-          ; if (isReservedOp name)
+          ; if isReservedOp name
              then unexpected ("reserved operator " ++ show name)
              else return name
           }
 
-    oper =
-        do{ c <- (opStart languageDef)
-          ; cs <- many (opLetter languageDef)
-          ; return (c:cs)
-          }
+    oper = (:) <$> opStart languageDef <*> many (opLetter languageDef)
         <?> "operator"
 
-    isReservedOp name =
-        isReserved (sort (reservedOpNames languageDef)) name
+    isReservedOp = isReserved (sort (reservedOpNames languageDef))
 
 
     -----------------------------------------------------------
@@ -637,7 +619,7 @@ makeTokenParser languageDef open sep close
     identifier =
         lexeme $ try $
         do{ name <- ident
-          ; if (isReservedName name)
+          ; if isReservedName name
              then unexpected ("reserved word " ++ show name)
              else return name
           }
@@ -661,7 +643,7 @@ makeTokenParser languageDef open sep close
         = scan names
         where
           scan []       = False
-          scan (r:rs)   = case (compare r name) of
+          scan (r:rs)   = case compare r name of
                             LT  -> scan rs
                             EQ  -> True
                             GT  -> False
@@ -708,11 +690,9 @@ makeTokenParser languageDef open sep close
           }
 
     -- MOD: return matched string
-    multiLineComment =
-        do { xs <- try (string (commentStart languageDef))
-           ; ys <- inComment
-           ; return (xs++ys)
-           }
+    multiLineComment = (++)
+                   <$> try (string (commentStart languageDef))
+                   <*> inComment
 
     inComment
         | nestedComments languageDef  = inCommentMulti
@@ -720,44 +700,44 @@ makeTokenParser languageDef open sep close
 
     -- MOD: return matched string
     inCommentMulti
-        =   do{ xs <- try (string (commentEnd languageDef)) ; return xs }
-        <|> do{ xs <- multiLineComment              ; ys <- inCommentMulti; return (xs++ys) }
-        <|> do{ xs <- many1 (noneOf startEnd)       ; ys <- inCommentMulti; return (xs++ys) }
-        <|> do{ y  <- oneOf startEnd                ; ys <- inCommentMulti; return (y:ys)  }
+        =   try (string (commentEnd languageDef))
+        <|> (++) <$> multiLineComment <*> inCommentMulti
+        <|> (++) <$> many1 (noneOf startEnd) <*> inCommentMulti
+        <|> (:) <$> oneOf startEnd <*> inCommentMulti
         <?> "end of comment"
         where
-          startEnd   = nub (commentEnd languageDef ++ commentStart languageDef)
+          startEnd = nub $ commentEnd languageDef ++ commentStart languageDef
 
     inCommentSingle
-        =   do{ xs <- try (string (commentEnd languageDef)); return xs }
-        <|> do{ xs <- many1 (noneOf startEnd)     ; ys <- inCommentSingle; return (xs++ys) }
-        <|> do{ y  <- oneOf startEnd              ; ys <- inCommentSingle; return (y:ys) }
+        =   try (string (commentEnd languageDef))
+        <|> (++) <$> many1 (noneOf startEnd) <*> inCommentSingle
+        <|> (:) <$> oneOf startEnd <*> inCommentSingle
         <?> "end of comment"
         where
-          startEnd   = nub (commentEnd languageDef ++ commentStart languageDef)
+          startEnd = nub $ commentEnd languageDef ++ commentStart languageDef
 
 --MOD --------------------------------------------------------------------
 -- THE FOLLOWING WAS ADDED FOR LAYOUT TOKEN PARSERS by Tim Sheard 7/27/09
 
-    layoutSep   = (symbol sep)   <?> ("inserted layout separator ("++sep++")")
-    layoutEnd   = (symbol close) <?> ("inserted layout closing symbol("++close++")")
-    layoutBegin = (symbol open)  <?> ("layout opening symbol ("++open++")")
+    layoutSep   = symbol sep   <?> ("inserted layout separator ("++sep++")")
+    layoutEnd   = symbol close <?> ("inserted layout closing symbol("++close++")")
+    layoutBegin = symbol open  <?> ("layout opening symbol ("++open++")")
 
     layout p stop =
 	   (do { try layoutBegin; xs <- sepBy p (symbol ";")
 	       ; layoutEnd <?> "explicit layout closing brace"
-	       ; stop; return (xs)}) <|>
-           (do { indent; xs <- align p stop; return xs})
+	       ; stop; return xs}) <|>
+           (indent >> align p stop)
 
     align p stop = ormore <|> zero
       where zero = do { stop; option "" layoutSep; undent; return []}
 	    ormore = do { x <- p
 	                ; whiteSpace
 	                ; (do { try layoutSep; xs <- align p stop; return (x:xs)}) <|>
-	                  (do { try layoutEnd; stop; return([x])}) <|>
+	                  (do { try layoutEnd; stop; return [x]}) <|>
 	                     -- removing indentation happens automatically
 	                     -- in function whiteSpace
-	                  (do { stop; undent; return ([x])})}
+	                  (do { stop; undent; return [x]})}
 
     whiteSpace =
        do { (col1,_,_) <- getInfo
@@ -767,24 +747,19 @@ makeTokenParser languageDef open sep close
               ([],_,_,_) -> return ()
               (_,[],_,_) -> return ()
               (_,_,[],_) -> -- No more input, close all the pending layout with '}'
-                            setInfo (col2,[],concat(map (const close) tabs))
+                            setInfo (col2,[],concatMap (const close) tabs)
               (cs,p:ps,_,EQ) -> setInfo (col2-1,tabs,sep++more)
               (cs,p:ps,_,LT) -> let adjust (col,[],add) = setInfo(col,[],rev add more)
                                     adjust (col,p:ps,add)
                                        | col2 < p = adjust(col-1,ps,close:add)
                                        | col2== p = setInfo(col-1,p:ps,rev (sep:add) more)
                                        | col2 > p = setInfo(col,p:ps,rev add more)
-                                    rev [] xs = xs
-                                    rev (s:ss) xs = rev ss (s++xs)
+                                    rev ss xs = foldl (flip (++)) xs ss
                                 in adjust (col2,p:ps,[])
               (cs,p:ps,_,GT) -> return ()
           }
 
-getInfo =
-   do { pos <- getPosition
-      ; tabs <- getState
-      ; tokens <- getInput
-      ; return(sourceColumn pos,tabs,tokens) }
+getInfo = (,,) <$> (sourceColumn <$> getPosition) <*> getState <*> getInput
 
 setInfo (col,tabs,tokens) =
   do { p <- getPosition
@@ -792,14 +767,10 @@ setInfo (col,tabs,tokens) =
      ; setState tabs
      ; setInput tokens }
 
-indent =
-  do { pos <- getPosition
-     ; tabs <- getState
-     ; setState (sourceColumn pos : tabs)
-     }
+indent = setState =<< ((:) <$> sourceColumn <$> getPosition <*> getState)
 
 undent =
-  do { (p:ps) <- getState
+  do { (_:ps) <- getState
      ; setState ps
      }
 
@@ -821,8 +792,7 @@ _eoln whiteSpace =
                               | col2==p = setInfo (column-1,tabs,rev (';':prefix) cs)
                               | col2<p  = adjust ('}':prefix) cs (column - 1) ps
                               | col2>p  = setInfo (column,tabs,rev prefix cs)
-                            rev [] ys = ys
-                            rev (x:xs) ys = rev xs (x:ys)
+                            rev xs ys = foldl (flip (:)) ys xs
                         in  adjust [] cs col2 tabs
       ; return '\n' }
 

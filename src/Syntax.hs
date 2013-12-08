@@ -254,7 +254,7 @@ instance Erase Term where
   erase (Refl _)        = Refl noAnn
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed
-  erase (Subst tm pf _)  = (erase tm)
+  erase (Subst tm pf _) = erase tm
   erase (Contra tm _)   = TrustMe noAnn
       -- note Contra only occurs in dead code
   erase (TCon n tms)    = TCon n (map erase tms)
@@ -343,7 +343,7 @@ instance Subst Term Annot
 -- This is used to instantiate the parameters of a data constructor
 -- to find the types of its arguments.
 substTele :: Telescope -> [ Term ] -> Telescope -> Telescope
-substTele tele args delta = substs (mkSubst tele args) delta where
+substTele tele args = substs (mkSubst tele args) where
   mkSubst Empty [] = []
   mkSubst (Cons _ (unrebind->((x,_),tele'))) (tm : tms) =
        (x,tm) : mkSubst tele' tms

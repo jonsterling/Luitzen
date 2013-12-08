@@ -76,7 +76,9 @@ equate t1 t2 = do
       Just ((x,y), body1, _, body2) <- unbind2 bnd1 bnd2
       equate body1 body2
 
-    (TyEq a b, TyEq c d) -> equate a c >> equate b d
+    (TyEq a b, TyEq c d) -> do
+      equate a c
+      equate b d
 
     (Refl _,  Refl _) -> return ()
 
@@ -99,10 +101,8 @@ equate t1 t2 = do
       let matchBr (Match bnd1) (Match bnd2) = do
             mpb <- unbind2 bnd1 bnd2
             case mpb of
-              Just (p1, a1, p2, a2) | p1 == p2 -> do
-                equate a1 a2
-              _ -> err [DS "Cannot match branches in",
-                              DD n1, DS "and", DD n2]
+              Just (p1, a1, p2, a2) | p1 == p2 -> equate a1 a2
+              _ -> err [DS "Cannot match branches in", DD n1, DS "and", DD n2]
       zipWithM_ matchBr brs1 brs2
 
     (Smaller a b, Smaller c d) ->
@@ -128,8 +128,7 @@ equate t1 t2 = do
 
 -- | Note: ignores erased args during comparison
 equateArgs :: Arg -> Arg -> TcMonad ()
-equateArgs (Arg Runtime t1) (Arg Runtime t2) = do
-  equate t1 t2
+equateArgs (Arg Runtime t1) (Arg Runtime t2) = equate t1 t2
 equateArgs a@(Arg Erased t1) (Arg Erased t2) = return ()
 equateArgs a1 a2 = err [DS "Arguments do not match",
                        DD a1, DS "and", DD a2]
@@ -195,7 +194,7 @@ whnf :: Term -> TcMonad Term
 
 whnf (Var x) = do
   maybeDef <- lookupDef x
-  case (maybeDef) of
+  case maybeDef of
     (Just d) -> whnf d
     _ -> return (Var x)
 
@@ -210,20 +209,19 @@ whnf (App t1 arg@(Arg _ t2)) = do
     (Ind _ bnd _) -> do
       nf2 <- whnf t2
       case nf2 of
-        (DCon _ _ _) -> do
+        DCon{} -> do
           ((f,x),body) <- unbind bnd
-          whnf (subst x nf2 (subst f nf body))
-        _ -> return (App nf arg)
+          whnf $ subst x nf2 $ subst f nf body
+        _ -> return $ App nf arg
 
-    _ -> do
-      return (App nf arg)
+    _ -> return $ App nf arg
 
 
 
 whnf (If t1 t2 t3 ann) = do
   nf <- whnf t1
   case nf of
-    (LitBool b) -> if b then whnf t2 else whnf t3
+    (LitBool b) -> whnf (if b then t2 else t3)
     _ -> return (If nf t2 t3 ann)
 
 whnf (Pcase a bnd ann) = do
@@ -264,7 +262,7 @@ whnf (Case scrut mtchs annot) = do
           whnf (substs ss br))
             `catchError` \ _ -> f alts
       f [] = err $ [DS "Internal error: couldn't find a matching",
-                    DS "branch for", DD nf, DS "in"] ++ (map DD mtchs)
+                    DS "branch for", DD nf, DS "in"] ++ map DD mtchs
     _ -> return (Case nf mtchs annot)
 
 
@@ -283,7 +281,7 @@ patternMatches (Arg Runtime t) pat@(PatCon d' pats) = do
     (DCon d args _) | d == d' ->
        concat <$> zipWithM patternMatches args (map fst pats)
     _ -> err [DS "arg", DD nf, DS "doesn't match pattern", DD pat]
-patternMatches (Arg Erased _) pat@(PatCon _ _) = do
+patternMatches (Arg Erased _) pat@(PatCon _ _) =
   err [DS "Cannot match against irrelevant args"]
 
 

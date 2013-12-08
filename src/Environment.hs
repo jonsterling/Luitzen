@@ -29,6 +29,7 @@ import Text.PrettyPrint.HughesPJ
 import Text.ParserCombinators.Parsec.Pos(SourcePos)
 import Control.Monad.Reader
 import Control.Monad.Error
+import Control.Applicative
 
 import Data.List
 import Data.Maybe (listToMaybe, catMaybes)
@@ -84,7 +85,7 @@ instance Disp Env where
 getTys :: (MonadReader Env m) => m [(TName,Term)]
 getTys = do
   ctx <- asks ctx
-  return $ catMaybes (map unwrap ctx)
+  return $ catMaybes (unwrap <$> ctx)
     where unwrap (Sig v ty) = Just (v,ty)
           unwrap _ = Nothing
 
@@ -130,13 +131,13 @@ lookupTCon v = do
     scanGamma [] = do currentEnv <- asks ctx
                       err [DS "The type constructor", DD v, DS "was not found.",
                            DS "The current environment is", DD currentEnv]
-    scanGamma ((Data v' delta lev cs):g) =
+    scanGamma (Data v' delta lev cs : g) =
       if v == v'
-        then return $ (delta,lev,Just cs)
+        then return (delta,lev,Just cs)
         else  scanGamma g
-    scanGamma ((AbsData v' delta lev):g) =
+    scanGamma (AbsData v' delta lev : g) =
       if v == v'
-         then return $ (delta,lev,Nothing)
+         then return (delta,lev,Nothing)
          else scanGamma g
     scanGamma (_:g) = scanGamma g
 
@@ -149,12 +150,12 @@ lookupDConAll v = do
   scanGamma g
   where
     scanGamma [] = return []
-    scanGamma ((Data v' delta  lev cs):g) =
+    scanGamma (Data v' delta  lev cs : g) =
         case find (\(ConstructorDef _ v'' tele) -> v''==v ) cs of
           Nothing -> scanGamma g
           Just c -> do more <- scanGamma g
-                       return $ [ (v', (delta, c)) ] ++ more
-    scanGamma ((AbsData v' delta lev):g) = scanGamma g
+                       return $ (v', (delta, c)) : more
+    scanGamma (AbsData v' delta lev : g) = scanGamma g
     scanGamma (_:g) = scanGamma g
 
 -- | Given the name of a data constructor and the type that it should
@@ -171,8 +172,8 @@ lookupDCon c tname = do
       err ([DS "Cannot find data constructor", DS c,
            DS "for type", DD tname,
            DS "Potential matches were:"] ++
-           (map (DD . fst) matches) ++
-           (map (DD . snd . snd) matches))
+           map (DD . fst) matches ++
+           map (DD . snd . snd) matches)
 
 
 
@@ -200,7 +201,7 @@ extendCtxTele (Cons _ (unrebind -> ((x,unembed->ty),tele))) m =
 -- | Extend the context with a module
 -- Note we must reverse the order.
 extendCtxMod :: (MonadReader Env m) => Module -> m a -> m a
-extendCtxMod m k = extendCtxs (reverse $ moduleEntries m) k
+extendCtxMod m = extendCtxs (reverse $ moduleEntries m)
 
 -- | Extend the context with a list of modules
 extendCtxMods :: (MonadReader Env m) => [Module] -> m a -> m a
@@ -220,7 +221,7 @@ getLocalCtx = do
 -- | Push a new source position on the location stack.
 extendSourceLocation :: (MonadReader Env m, Disp t) => SourcePos -> t -> m a -> m a
 extendSourceLocation p t =
-  local (\ e@(Env {sourceLocation = locs}) -> e {sourceLocation = (SourceLocation p t):locs})
+  local (\ e@(Env {sourceLocation = locs}) -> e {sourceLocation = SourceLocation p t : locs})
 
 -- | access current source location
 getSourceLocation :: MonadReader Env m => m [SourceLocation]
@@ -235,7 +236,7 @@ getDefs :: MonadReader Env m => m [(TName,Term)]
 getDefs = do
   ctx <- getCtx
   return $ filterDefs ctx
- where filterDefs ((Def x a):ctx) = (x,a) : filterDefs ctx
+ where filterDefs (Def x a : ctx) = (x,a) : filterDefs ctx
        filterDefs (_:ctx) = filterDefs ctx
        filterDefs [] = []
 
@@ -244,7 +245,7 @@ substDefs :: MonadReader Env m => Term -> m Term
 substDefs tm = do
   ctx <- getCtx
   return $ substs (expandDefs ctx) tm
- where expandDefs ((Def x a):ctx) =
+ where expandDefs (Def x a : ctx) =
            let defs = expandDefs ctx
            in ((x, substs defs a) : defs)
        expandDefs (_:ctx) = expandDefs ctx
@@ -267,7 +268,7 @@ instance Error Err where
 
 instance Disp Err where
   disp (Err [] msg) = msg
-  disp (Err ((SourceLocation p term):_) msg)  =
+  disp (Err (SourceLocation p term : _) msg)  =
     disp p $$
     nest 2 msg $$
     nest 2 (text "In the expression" $$ nest 2 (disp term))
