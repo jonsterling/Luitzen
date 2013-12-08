@@ -112,5 +112,5 @@ plus_associates = ind pa i = \j k .
     -- S ((i'+j)+k) = S (i'+(j+k))
     Succ i' ->
       let ih = (pa i' j k : plus (plus i' j) k = plus i' (plus j k))
-    in subst refl by ih at x. Succ (plus (plus i' j) k) = Succ x
+      in subst refl by ih at x. Succ (plus (plus i' j) k) = Succ x
 
