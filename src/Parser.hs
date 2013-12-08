@@ -524,7 +524,7 @@ impProd =
   do (x,tyA, mc) <- brackets
        (try ((,,) <$> variable <*> (colon >> expr) <*> constraint)
         <|> ((,,) <$> fresh wildcardName <*> expr) <*> constraint)
-     reservedOp "->"
+     optional (reservedOp "->")
      tyB <- expr
      return $ case mc of
        Just c  -> PiC Erased (bind (x,embed tyA) (c,tyB))
@@ -544,7 +544,7 @@ expProdOrAnnotOrParens =
   let
     -- afterBinder picks up the return type of a pi
     afterBinder :: LParser Term
-    afterBinder = reservedOp "->" *> expr
+    afterBinder = optional (reservedOp "->") *> expr
 
     -- before binder parses an expression in parens
     -- If it doesn't involve a colon, you get (Right tm)
