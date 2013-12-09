@@ -33,9 +33,9 @@ pred = \n . case n of
 
 sm_eq_Sn__m_eq_n : (m:Nat) -> (n:Nat) -> (Succ m = Succ n) -> m = n
 sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
-  let pSm_eq_m    = (refl tt : pred (Succ m) = m) in
-  let pSn_eq_n    = (refl tt : pred (Succ n) = n) in
-  let pSm_eq_pSn  = (subst (refl tt) by sm_eq_Sn
+  let pSm_eq_m    = (refl : pred (Succ m) = m) in
+  let pSn_eq_n    = (refl : pred (Succ n) = n) in
+  let pSm_eq_pSn  = (subst (refl) by sm_eq_Sn
                       at h.pred (Succ m) = pred h) in
   let m_eq_pSn    = subst pSm_eq_pSn
                     by pSm_eq_m
@@ -46,7 +46,7 @@ sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
 
 m_eq_n_Sm_eq_Sn : (m:Nat) -> (n:Nat) -> m = n -> (Succ m = Succ n)
 m_eq_n_Sm_eq_Sn = \m n pf .
-  subst (refl tt) by pf at x. (Succ m = Succ x)
+  subst (refl) by pf at x. (Succ m = Succ x)
 
 nat_eq : Nat -> Nat -> Bool
 ind nat_eq x = \ y .
@@ -85,16 +85,16 @@ ind minus n = \m .
 minus_same_zero : (n : Nat) -> (minus n n = 0)
 ind minus_same_zero n =
     case n of
-      Zero -> (refl tt : minus 0 0 = 0)
+      Zero -> (refl : minus 0 0 = 0)
       Succ p ->
         let ih = (minus_same_zero p : minus p p = 0) in
-        let x  = (refl tt : minus p p = (minus (Succ p) (Succ p))) in
+        let x  = (refl : minus p p = (minus (Succ p) (Succ p))) in
         (subst ih by x at h. (h = 0))
 
 lemma_minus_zero_id : (n : Nat) -> (minus n 0 = n)
 lemma_minus_zero_id =   \n . case n of
-    Zero -> (refl tt : minus 0 0 = 0)
-    Succ n' -> (refl tt : minus (Succ n') 0 = Succ n')
+    Zero -> (refl : minus 0 0 = 0)
+    Succ n' -> (refl : minus (Succ n') 0 = Succ n')
 
 
 lemma_minus_plus_id : (m : Nat) -> (n : Nat) -> ((minus (plus m n) m) = n)
@@ -107,10 +107,10 @@ plus_associates : (i:Nat) -> (j:Nat) -> (k:Nat) -> plus (plus i j) k = plus i (p
 plus_associates = ind pa i = \j k .
   case i of
      -- `refl` away `Zero`s on the left of `(+)`: (0+j)+k = j+k = 0+(j+k)
-    Zero -> refl tt
+    Zero -> refl
     -- associate `plus` in `Succ` of the inductive case:
     -- S ((i'+j)+k) = S (i'+(j+k))
     Succ i' ->
       let ih = (pa i' j k : plus (plus i' j) k = plus i' (plus j k))
-      in subst (refl tt) by ih at x. Succ (plus (plus i' j) k) = Succ x
+      in subst (refl) by ih at x. Succ (plus (plus i' j) k) = Succ x
 

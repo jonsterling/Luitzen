@@ -14,7 +14,7 @@ data Fin (n : Nat) : Type where
   Succ of [m:Nat][n = Succ m] (Fin m)
 
 x : Fin 1
-x = Zero [0][refl tt]
+x = Zero [0][refl]
 
 toNat : [n : Nat] -> Fin n -> Nat
 ind toNat [n] = \ fn .
@@ -27,16 +27,16 @@ raise = \ [m] .
   ind raise n = \ i.
     case n of
       Zero    -> i
-      Succ n0 -> Succ [plus n0 m][refl tt] (raise n0 i)
+      Succ n0 -> Succ [plus n0 m][refl] (raise n0 i)
 
 inject_1 : [m : Nat] -> Fin m -> Fin (Succ m)
-inject_1 = \[m] f . Succ [m][refl tt] f
+inject_1 = \[m] f . Succ [m][refl] f
 
 inject : [m:Nat] (n:Nat) -> Fin m -> Fin (plus m n)
 ind inject [m] = \n fn.
   case fn of
-    Zero [m0][m_eq]   -> Zero [plus m0 n][refl tt]
-    Succ [m0][m_eq] i -> Succ [plus m0 n][refl tt] (inject [m0] n i)
+    Zero [m0][m_eq]   -> Zero [plus m0 n][refl]
+    Succ [m0][m_eq] i -> Succ [plus m0 n][refl] (inject [m0] n i)
 
 
 fpred : [n : Nat] -> Fin n -> Fin n
@@ -97,7 +97,7 @@ ind fin_deq [n] = \fn1 fn2 .
    case fn1 of
       Zero [m1][m1_eq] ->
          case fn2 of
-            Zero [m2][m2_eq]      -> Yes [refl tt]
+            Zero [m2][m2_eq]      -> Yes [refl]
             Succ [m2][m2_eq] x    -> No  [\y. contra y]
       Succ [m1][m1_eq] fn1' ->
          --m1_eq : n = Succ m1
@@ -108,7 +108,7 @@ ind fin_deq [n] = \fn1 fn2 .
                  let fn2'' = subst fn2'
                                by (sym [Nat][m1][m2] m1_eq_m2) at h. Fin h in
                  case (fin_deq [m1] fn1' fn2'') of
-                    Yes [pf] -> Yes [(refl tt : (Succ [m1][m1_eq] fn1' : Fin n) =
+                    Yes [pf] -> Yes [(refl : (Succ [m1][m1_eq] fn1' : Fin n) =
                                         Succ [m2][m2_eq] fn2'')]
                     No  [pf] -> No  [\y. pf y]
             Zero [m2][m2_eq] -> No [\y. contra y]

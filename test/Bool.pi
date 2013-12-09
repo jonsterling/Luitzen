@@ -16,9 +16,9 @@ notnot : Boolean -> Boolean
 notnot = \x. not (not x)
 
 test : not (not F) = F
-test = refl tt
+test = refl
 
 test2 : id = notnot
 test2 = \x. case x of
-  T -> refl tt
-  F -> refl tt
+  T -> refl
+  F -> refl

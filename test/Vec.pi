@@ -25,7 +25,7 @@ data In (A:Type) (x:A) (n:Nat) (v:Vec A n) : Type where
            (In A x m xs)
 
 singleton : [A:Type] -> A -> Vec A 1
-singleton = \[A] x. Cons [0][refl tt] x (Nil [refl tt])
+singleton = \[A] x. Cons [0][refl] x (Nil [refl])
 
 
 head : [A :Type] [n:Nat] -> Vec A (Succ n) -> A
@@ -44,14 +44,14 @@ tail = \ [A][n] x.  case x of
 
 append : [A :Type] [m:Nat] [n:Nat] -> Vec A m -> Vec A n -> Vec A (plus m n)
 append = \[A] . ind concat [m] = \ [n] v1 ys . case v1 of
-     Cons [m0][n_eq] x xs -> Cons [plus m0 n][refl tt] x (concat [m0][n] xs ys)
+     Cons [m0][n_eq] x xs -> Cons [plus m0 n][refl] x (concat [m0][n] xs ys)
      Nil [n_eq] -> ys
 
 zap : [A:Type] [B: Type] [n:Nat] -> Vec (A -> B) n -> Vec A n -> Vec B n
 zap = \[A][B]. ind zap [n] = \ vs1 vs2 .
   case vs1 of
     Nil [eq1] -> case vs2 of
-       Nil  [eq2]  -> Nil [refl tt]
+       Nil  [eq2]  -> Nil [refl]
        Cons [m2][eq2] f fs -> contra eq2
     Cons [m1][eq1] f fs -> case vs2 of
        Nil  [eq2]  -> contra eq2
@@ -59,13 +59,13 @@ zap = \[A][B]. ind zap [n] = \ vs1 vs2 .
         let [m1_eq_m2] = sm_eq_Sn__m_eq_n m1 m2 eq2   in
         let [m2_eq_m1] = sym [Nat][m1][m2] m1_eq_m2   in
         let xs' = subst xs by m2_eq_m1 at h. Vec A h  in
-        Cons [m1][refl tt] (f x) (zap [m1] fs xs')
+        Cons [m1][refl] (f x) (zap [m1] fs xs')
 
 replicate : [A:Type] (n:Nat) -> A -> Vec A n
 replicate = \[A] . ind replicate n = \ x.
    case n of
-     Zero   -> Nil [refl tt]
-     Succ m -> Cons [m][refl tt] x (replicate m x)
+     Zero   -> Nil [refl]
+     Succ m -> Cons [m][refl] x (replicate m x)
 
 map : [A:Type] [B:Type] [n:Nat] -> (A -> B) -> Vec A n -> Vec B n
 map = \[A][B]. ind map [n] = \f v.
@@ -143,7 +143,7 @@ foldr1 = \[A]. ind foldr1 [m] = \ f v . case v of
 
 concat : [A:Type] [m : Nat] [n : Nat] -> Vec (Vec A m) n -> Vec A (mult n m)
 concat = \[A][m]. ind concat [n] = \v. case v of
-   Nil [eq] -> Nil [refl tt]
+   Nil [eq] -> Nil [refl]
    Cons [n'][eq] xs xss -> append[A][m][mult n' m] xs (concat [n'] xss)
 
 

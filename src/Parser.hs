@@ -380,7 +380,7 @@ trustme = TrustMe (Annot Nothing) <$ reserved "TRUSTME"
 refl :: LParser Term
 refl = do
   reserved "refl"
-  evidence <- expr
+  evidence <- option LitUnit expr
   annot <- optionMaybe (colon >> expr)
   return $ Refl (Annot annot) evidence
 
