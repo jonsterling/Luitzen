@@ -334,17 +334,17 @@ tcTerm (Refl ann1 evidence) ann2 = do
       return (Refl (Annot $ Just ty) evidence, ty)
     _ -> err [DS "refl requires annotation"]
 
-tcTerm (ResolvedObsEq a b t p) Nothing = do
+tcTerm (ResolvedObsEq a b ann p) Nothing = do
   (aa,aTy) <- inferType a
   (ab,bTy) <- checkType b aTy
   equate aTy bTy
-  return (ResolvedObsEq aa ab t p, Type 0)
+  return (ResolvedObsEq aa ab ann p, Type 0)
 
-tcTerm (ObsEq a b annot) Nothing = do
-  (aa,aTy) <- inferType a
-  (ab,bTy) <- checkType b aTy
+tcTerm (ObsEq a b ann1) ann2 = do
+  (aa, aTy) <- inferType a
+  (ab, bTy) <- checkType b aTy
   equate aTy bTy
-  return (ObsEq aa ab annot, Type 0)
+  return (ObsEq aa ab $ Annot $ Just aTy, Type 0)
 
 tcTerm (Subst tm p mbnd) Nothing = do
   -- infer the type of the proof p

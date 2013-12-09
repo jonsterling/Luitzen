@@ -359,15 +359,13 @@ instance Display Term where
   display (ObsEq a b t)   = do
     da <- display a
     db <- display b
-    dt <- display t
-    return $ da <+> text "==" <+> db <+> text ":" <+> dt
+    return $ da <+> text "=" <+> db
 
   display (ResolvedObsEq a b t p)   = do
     da <- display a
     db <- display b
-    dt <- display t
     dp <- display p
-    return $ da <+> text "==" <+> db <+> text ":" <+> dt <+> text "~~>" <+> dp
+    return $ da <+> text "=" <+> db <+> text "~~>" <+> dp
 
   display (Contra ty mty)  = do
      dty <- display ty

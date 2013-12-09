@@ -387,10 +387,12 @@ expr,term,factor :: LParser Term
 -- expr is the toplevel expression grammar
 expr = Pos <$> getPosition <*> buildExpressionParser table term
   where table = [[ifix  AssocLeft "<" Smaller],
+                 [ifix  AssocLeft "=" mkEq],
                  [ifixM AssocRight "->" mkArrow]
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
         ifixM assoc op f = Infix (reservedOp op >> f) assoc
+        mkEq a b = ObsEq a b (Annot Nothing)
         mkArrow  =
           do n <- fresh wildcardName
              return $ \tyA tyB ->
@@ -419,8 +421,7 @@ funapp = do
                   ((,Runtime) <$> factor)
         app e1 (e2,ep)  =  App e1 (Arg ep e2)
 
-factor = choice [ eqTy       <?> "an equality type"
-                , varOrCon   <?> "a variable or nullary data constructor"
+factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , typen      <?> "Type n"
                 , natenc     <?> "a literal"
                 , lambda     <?> "a lambda"
@@ -440,18 +441,6 @@ factor = choice [ eqTy       <?> "an equality type"
                 , expProdOrAnnotOrParens
                     <?> "an explicit function type or annotated expression"
                 ]
-
-eqTy :: LParser Term
-eqTy = do
-  reserved "Eq"
-  reservedOp "["
-  a <- expr
-  comma
-  b <- expr
-  reservedOp "]"
-  colon
-  ty <- expr
-  return $ ObsEq a b ty
 
 {-
 impBind,expBind :: LParser (TName,Epsilon,Term)

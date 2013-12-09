@@ -259,33 +259,34 @@ whnf (Case scrut mtchs annot) = do
     _ -> return (Case nf mtchs annot)
 
 
-whnf eq@(ObsEq a b ty) = do
+whnf eq@(ObsEq a b annot) = do
   na <- whnf a
   nb <- whnf b
 
   let fallback = (equate a b >> return TyUnit) `catchError` (\e -> return eq)
-  let resolve p = return $ ResolvedObsEq a b ty p
+  let resolve p = return $ ResolvedObsEq a b annot p
 
   definitionally <- (Just <$> (equate na nb)) `catchError` (\e -> return Nothing)
   case definitionally of
     Just () -> resolve TyUnit
     Nothing ->
-      case ty of
-        Pos _ x -> whnf (ObsEq a b x)
-        Paren x -> whnf (ObsEq a b x)
-        TyUnit -> resolve TyUnit
-        TyBool -> case (na, nb) of
-          (LitBool x, LitBool y) ->
-            resolve $ if x == y then TyUnit else TyEmpty
-          _ -> fallback
-        Pi ep bnd -> do
-          ((x, etyA), tyB) <- unbind bnd
-          case (na, nb) of
-            (Lam _ b1, Lam _ b2) ->
-              let app f = whnf $ App f (Arg ep (Var x)) in
-              resolve =<< Pi ep <$> (bind (x, etyA) <$> (ObsEq <$> app na <*> app nb <*> pure tyB))
-            _ -> fallback
-        _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
+      case annot of
+        Annot (Just ty) ->
+          case ty of
+            TyUnit -> resolve TyUnit
+            TyBool -> case (na, nb) of
+              (LitBool x, LitBool y) ->
+                resolve $ if x == y then TyUnit else TyEmpty
+              _ -> fallback
+            Pi ep bnd -> do
+              ((x, etyA), tyB) <- unbind bnd
+              case (na, nb) of
+                (Lam _ b1, Lam _ b2) ->
+                  let app f = whnf $ App f (Arg ep (Var x)) in
+                  resolve =<< Pi ep <$> (bind (x, etyA) <$> (ObsEq <$> app na <*> app nb <*> pure (Annot (Just tyB))))
+                _ -> fallback
+            _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
+        _ -> fallback
 
 -- all other terms are already in WHNF
 whnf tm = return tm

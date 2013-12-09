@@ -80,8 +80,8 @@ data Term =
 
    -- equality
    | Refl Annot Term
-   | ObsEq Term Term Term
-   | ResolvedObsEq Term Term Term Term
+   | ObsEq Term Term Annot
+   | ResolvedObsEq Term Term Annot Term
    | Subst Term Term (Maybe (Bind TName Term))
                         -- ^ equality elimination
    | Contra Term Annot  -- ^ witness to contradiction
@@ -256,8 +256,8 @@ instance Erase Term where
     where ((x,unembed -> rhs),body) = unsafeUnbind bnd
 
   erase (Refl _ p)        = Refl noAnn (erase p)
-  erase (ObsEq a b t)     = ObsEq (erase a) (erase b) (erase t)
-  erase (ResolvedObsEq a b t p) = ResolvedObsEq (erase a) (erase b) (erase t) (erase p)
+  erase (ObsEq a b t)     = ObsEq (erase a) (erase b) noAnn
+  erase (ResolvedObsEq a b t p) = ResolvedObsEq (erase a) (erase b) noAnn (erase p)
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed
   erase (Subst tm pf _) = erase tm

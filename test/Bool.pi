@@ -15,10 +15,10 @@ id = \x . x
 notnot : Boolean -> Boolean
 notnot = \x. not (not x)
 
-test : Eq[not (not F), F] : Boolean
+test : not (not F) = F
 test = refl tt
 
-test2 : Eq[id, notnot] : (Boolean -> Boolean)
+test2 : id = notnot
 ind test2 x = case x of
   T -> refl tt
   F -> refl tt
