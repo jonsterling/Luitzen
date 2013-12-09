@@ -63,7 +63,7 @@ Optional components in this BNF are marked with < >
     | (a, b)                   Prod introduction
     | pcase a of (x,y) -> b    Prod elimination
 
-    | Eq[a,b] : A              Equality type
+    | a = b                    Equality type
     | subst a by b <at x.c>    Type conversion
     | contra a                 Contra
     | refl p                   Equality proof with evidence
