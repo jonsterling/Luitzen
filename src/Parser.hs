@@ -378,7 +378,11 @@ trustme :: LParser Term
 trustme = TrustMe (Annot Nothing) <$ reserved "TRUSTME"
 
 refl :: LParser Term
-refl = Refl (Annot Nothing) <$> (reserved "refl" *> expr)
+refl = do
+  reserved "refl"
+  evidence <- expr
+  annot <- optionMaybe (colon >> expr)
+  return $ Refl (Annot annot) evidence
 
 -- Expressions
 
