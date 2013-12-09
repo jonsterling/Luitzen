@@ -290,7 +290,7 @@ tcTerm (OrdAx ann1) ann2 = do
 tcTerm (Ind ep1 bnd ann1) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
-    Just ty@(ResolvedObsEq _ _ _ p) -> tcTerm (Ind ep1 bnd ann1) (Just p)
+    Just ty@(ResolvedObsEq _ _ p) -> tcTerm (Ind ep1 bnd ann1) (Just p)
     Just ty@(Pi ep2 bnd2) | ep1 == ep2 -> do
       ((f,x), body) <- unbind bnd
       ((y,unembed -> tyA), tyB) <- unbind bnd2
@@ -326,7 +326,7 @@ tcTerm (Ind ep1 bnd ann1) ann2 = do
 tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
-    (Just ty@(ResolvedObsEq a b t p)) -> do
+    (Just ty@(ResolvedObsEq a b p)) -> do
       _ <- checkType evidence p
       return (Refl (Annot $ Just ty) evidence, ty)
     (Just ty@(ObsEq a b t)) -> do
@@ -334,11 +334,11 @@ tcTerm (Refl ann1 evidence) ann2 = do
       return (Refl (Annot $ Just ty) evidence, ty)
     _ -> err [DS "refl requires annotation"]
 
-tcTerm (ResolvedObsEq a b ann p) Nothing = do
+tcTerm (ResolvedObsEq a b p) Nothing = do
   (aa,aTy) <- inferType a
   (ab,bTy) <- checkType b aTy
   equate aTy bTy
-  return (ResolvedObsEq aa ab ann p, Type 0)
+  return (ResolvedObsEq aa ab p, Type 0)
 
 tcTerm (ObsEq a b ann1) ann2 = do
   (aa, aTy) <- inferType a

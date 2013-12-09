@@ -163,7 +163,7 @@ ensureTyEq ty = do
   nf <- whnf ty
   case nf of
     ObsEq m n t -> return (m, n)
-    ResolvedObsEq m n t p -> return (m, n)
+    ResolvedObsEq m n p -> return (m, n)
     _ -> err [DS "Expected an equality type, instead found", DD nf]
 
 
@@ -264,7 +264,7 @@ whnf eq@(ObsEq a b annot) = do
   nb <- whnf b
 
   let fallback = (equate a b >> return TyUnit) `catchError` (\e -> return eq)
-  let resolve p = return $ ResolvedObsEq a b annot p
+  let resolve p = return $ ResolvedObsEq a b p
 
   definitionally <- (Just <$> (equate na nb)) `catchError` (\e -> return Nothing)
   case definitionally of

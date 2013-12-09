@@ -81,7 +81,7 @@ data Term =
    -- equality
    | Refl Annot Term
    | ObsEq Term Term Annot
-   | ResolvedObsEq Term Term Annot Term
+   | ResolvedObsEq Term Term Term
    | Subst Term Term (Maybe (Bind TName Term))
                         -- ^ equality elimination
    | Contra Term Annot  -- ^ witness to contradiction
@@ -257,7 +257,7 @@ instance Erase Term where
 
   erase (Refl _ p)        = Refl noAnn (erase p)
   erase (ObsEq a b t)     = ObsEq (erase a) (erase b) noAnn
-  erase (ResolvedObsEq a b t p) = ResolvedObsEq (erase a) (erase b) noAnn (erase p)
+  erase (ResolvedObsEq a b p) = ResolvedObsEq (erase a) (erase b) (erase p)
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed
   erase (Subst tm pf _) = erase tm

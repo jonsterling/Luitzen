@@ -361,7 +361,7 @@ instance Display Term where
     db <- display b
     return $ da <+> text "=" <+> db
 
-  display (ResolvedObsEq a b t p)   = do
+  display (ResolvedObsEq a b p)   = do
     da <- display a
     db <- display b
     dp <- display p
