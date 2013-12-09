@@ -103,7 +103,7 @@ tcTerm (App t1 (Arg ep2 t2)) Nothing = do
   unless (ep1 == ep2) $
     err [DD ep1, DS "argument supplied for", DD ep2, DS "function"]
 
-    -- if the function has a constrained type
+  -- if the function has a constrained type
   -- make sure that it is satisfied
   () <- case mc of
     Just constr@(Smaller b c) -> do

@@ -21,9 +21,9 @@ data Sig (A:Type) (B: A -> Type) : Type where
 
 injectivity1 : [A:Type] [B:A -> Type] (x1 : A) (y1 : B x1) (x2 : A) (y2 : B x2) -> ((Prod x1 y1 : Sig A B) = Prod x2 y2) -> x1 = x2
 injectivity1 = \[A][B] x1 y1 x2 y2 eq .
-   let f1 = (refl : π1 [A][B] (Prod x1 y1) = x1) in
-   let f2 = (refl : π1 [A][B] (Prod x2 y2) = x2) in
-   let p1 = subst refl by eq at h. π1 [A][B] (Prod x1 y1) = π1 [A][B] h in
+   let f1 = (refl tt : π1 [A][B] (Prod x1 y1) = x1) in
+   let f2 = (refl tt : π1 [A][B] (Prod x2 y2) = x2) in
+   let p1 = subst (refl tt) by eq at h. π1 [A][B] (Prod x1 y1) = π1 [A][B] h in
    let p2 = subst p1 by f1 at h. h = π1 [A][B] (Prod x2 y2) in
    subst p2 by f2 at h. x1 = h
 
@@ -32,9 +32,9 @@ injectivity1 = \[A][B] x1 y1 x2 y2 eq .
 -- already identical.
 injectivity2 : [A:Type] [B:A -> Type] (x : A) (y1 : B x) (y2 : B x) -> ((Prod x y1 : Sig A B) = Prod x y2) -> y1 = y2
 injectivity2 = \[A][B] x y1 y2 eq.
-   let f1 = (refl : (π2 [A][B] (Prod x y1) : B x) = y1) in
-   let f2 = (refl : π2 [A][B] (Prod x y2) = y2) in
-   let p1 = subst refl by eq at h. π2 [A][B] (Prod x y1) = π2 [A][B] h in
+   let f1 = (refl tt : (π2 [A][B] (Prod x y1) : B x) = y1) in
+   let f2 = (refl tt : π2 [A][B] (Prod x y2) = y2) in
+   let p1 = subst (refl tt) by eq at h. π2 [A][B] (Prod x y1) = π2 [A][B] h in
    let p2 = subst p1 by f1 at h. (h : B x) = π2 [A][B] (Prod x y2) in
    subst p2 by f2 at h. y1 = h
 
@@ -88,9 +88,9 @@ swap = \ [A][B] p . case p of
 
 injectivity2' : [A:Type] [B: Type] (x1 : A) (y1 : B) (x2 : A) -> (y2 : B) ((Prod x1 y1 : Times A B) = Prod x2 y2) -> (y1 = y2)
 injectivity2' = \[A][B] x1 y1 x2 y2 eq.
-   let f1 = (refl : π2 [A][\x. B] (Prod x1 y1) = y1) in
-   let f2 = (refl : π2 [A][\x. B] (Prod x2 y2) = y2) in
-   let p1 = subst refl by eq
+   let f1 = (refl tt : π2 [A][\x. B] (Prod x1 y1) = y1) in
+   let f2 = (refl tt : π2 [A][\x. B] (Prod x2 y2) = y2) in
+   let p1 = subst (refl tt) by eq
              at h. π2 [A][\x. B] (Prod x1 y1) = π2 [A][\x. B] h in
    let p2 = subst p1 by f1 at h. (h : B) = π2 [A][\x. B] (Prod x1 y2) in
    subst p2 by f2 at h. y1 = h
