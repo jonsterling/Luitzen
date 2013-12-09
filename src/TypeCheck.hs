@@ -73,8 +73,10 @@ tcTerm (Lam ep1 bnd) (Just (Pi ep2 bnd2)) | ep1 == ep2 = do
 tcTerm (Lam ep1 _) (Just (Pi ep2 _))  =
   err [DS "Epsilon", DD ep1,
        DS "on lambda does not match expected", DD ep2]
-tcTerm (Lam _ bnd) (Just nf) =
-  err [DS "Lambda expression has a function type, not", DD nf]
+tcTerm e@(Lam _ bnd) (Just nf) =
+  case nf of
+    ty@(ResolvedObsEq _ _ p) -> tcTerm e (Just p)
+    _ -> err [DS "Lambda expression has a function type, not", DD nf]
 
 -- infer the type of a lambda expression, when an annotation
 -- on the binder is present

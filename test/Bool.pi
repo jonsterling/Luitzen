@@ -19,6 +19,6 @@ test : not (not F) = F
 test = refl tt
 
 test2 : id = notnot
-ind test2 x = case x of
+test2 = \x. case x of
   T -> refl tt
   F -> refl tt
