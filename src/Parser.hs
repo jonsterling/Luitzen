@@ -63,10 +63,10 @@ Optional components in this BNF are marked with < >
     | (a, b)                   Prod introduction
     | pcase a of (x,y) -> b    Prod elimination
 
-    | a = b                    Equality type
-    | refl                     Equality proof
+    | Eq[a,b] : A              Equality type
     | subst a by b <at x.c>    Type conversion
     | contra a                 Contra
+    | refl p                   Equality proof with evidence
 
     | C a ...                  Type / Term constructors
     | case a [y] of            Pattern matching
@@ -378,7 +378,7 @@ trustme :: LParser Term
 trustme = TrustMe (Annot Nothing) <$ reserved "TRUSTME"
 
 refl :: LParser Term
-refl = Refl (Annot Nothing) <$ reserved "refl"
+refl = Refl (Annot Nothing) <$> (reserved "refl" *> expr)
 
 -- Expressions
 
@@ -387,7 +387,6 @@ expr,term,factor :: LParser Term
 -- expr is the toplevel expression grammar
 expr = Pos <$> getPosition <*> buildExpressionParser table term
   where table = [[ifix  AssocLeft "<" Smaller],
-                 [ifix  AssocLeft "=" TyEq],
                  [ifixM AssocRight "->" mkArrow]
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
@@ -420,7 +419,8 @@ funapp = do
                   ((,Runtime) <$> factor)
         app e1 (e2,ep)  =  App e1 (Arg ep e2)
 
-factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
+factor = choice [ eqTy       <?> "an equality type"
+                , varOrCon   <?> "a variable or nullary data constructor"
                 , typen      <?> "Type n"
                 , natenc     <?> "a literal"
                 , lambda     <?> "a lambda"
@@ -440,6 +440,18 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , expProdOrAnnotOrParens
                     <?> "an explicit function type or annotated expression"
                 ]
+
+eqTy :: LParser Term
+eqTy = do
+  reserved "Eq"
+  reservedOp "["
+  a <- expr
+  comma
+  b <- expr
+  reservedOp "]"
+  colon
+  ty <- expr
+  return $ ObsEq a b ty
 
 {-
 impBind,expBind :: LParser (TName,Epsilon,Term)

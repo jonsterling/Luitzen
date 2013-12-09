@@ -146,6 +146,7 @@ tcTerm (TrustMe ann1) ann2 = do
   Just expectedTy <- matchAnnots ann1 ann2
   return (TrustMe (Annot (Just expectedTy)), expectedTy)
 
+tcTerm (TyEmpty) Nothing = return (TyEmpty, Type 0)
 tcTerm (TyUnit) Nothing = return (TyUnit, Type 0)
 tcTerm (LitUnit) Nothing = return (LitUnit, TyUnit)
 tcTerm (TyBool) Nothing = return (TyBool,Type 0)
@@ -289,6 +290,7 @@ tcTerm (OrdAx ann1) ann2 = do
 tcTerm (Ind ep1 bnd ann1) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
+    Just ty@(ResolvedObsEq _ _ _ p) -> tcTerm (Ind ep1 bnd ann1) (Just p)
     Just ty@(Pi ep2 bnd2) | ep1 == ep2 -> do
       ((f,x), body) <- unbind bnd
       ((y,unembed -> tyA), tyB) <- unbind bnd2
@@ -321,21 +323,28 @@ tcTerm (Ind ep1 bnd ann1) ann2 = do
       err [DS "Ind expression should be annotated with its type"]
 
 
-
-tcTerm (TyEq a b) Nothing = do
-  (aa,aTy) <- inferType a
-  (ab,bTy) <- checkType b aTy
-  return (TyEq aa ab, Type 0)
-
-tcTerm (Refl ann1) ann2 = do
+tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
-    (Just (TyEq a b)) ->
-      let ty = TyEq a b in
-      equate a b >> return (Refl $ Annot $ Just ty, ty)
-    (Just ty) -> err [DS "refl annotated with", DD ty]
-    Nothing   -> err [DS "refl requires annotation"]
+    (Just ty@(ResolvedObsEq a b t p)) -> do
+      _ <- checkType evidence p
+      return (Refl (Annot $ Just ty) evidence, ty)
+    (Just ty@(ObsEq a b t)) -> do
+      equate a b
+      return (Refl (Annot $ Just ty) evidence, ty)
+    _ -> err [DS "refl requires annotation"]
 
+tcTerm (ResolvedObsEq a b t p) Nothing = do
+  (aa,aTy) <- inferType a
+  (ab,bTy) <- checkType b aTy
+  equate aTy bTy
+  return (ResolvedObsEq aa ab t p, Type 0)
+
+tcTerm (ObsEq a b annot) Nothing = do
+  (aa,aTy) <- inferType a
+  (ab,bTy) <- checkType b aTy
+  equate aTy bTy
+  return (ObsEq aa ab annot, Type 0)
 
 tcTerm (Subst tm p mbnd) Nothing = do
   -- infer the type of the proof p
@@ -492,12 +501,12 @@ merge ann (x : xs) = x <$ (equate <$> merge ann xs <*> pure x)
 -- | Create the binding in the context for each of the variables in
 -- the pattern.
 declarePat :: Pattern -> Epsilon -> Type -> TcMonad ([Decl], [TName])
-declarePat (PatVar x) ep ty@(TyEq (Var y) z) | y `notElem` fv z = do
-  mt <- lookupDef y
-  let ydef = case mt of
-        Nothing -> [Def y z]
-        Just _  -> []
-  return (Sig x ty : ydef, [x | ep == Erased])
+-- declarePat (PatVar x) ep ty@(TyEq (Var y) z) | y `notElem` fv z = do
+--   mt <- lookupDef y
+--   let ydef = case mt of
+--         Nothing -> [Def y z]
+--         Just _  -> []
+--   return (Sig x ty : ydef, [x | ep == Erased])
 declarePat (PatVar x) Runtime y = return ([Sig x y],[])
 declarePat (PatVar x) Erased  y = return ([Sig x y],[x])
 declarePat (PatCon d pats) Runtime (TCon c params) = do

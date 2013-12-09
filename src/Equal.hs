@@ -11,8 +11,7 @@ import Environment
 
 import Unbound.LocallyNameless hiding (Data, Refl)
 import Control.Monad.Error (catchError, zipWithM, zipWithM_)
-import Control.Applicative ((<$>))
-
+import Control.Applicative ((<$>), (<*>), pure)
 
 -- | compare two expressions for equality
 -- ignores type annotations during comparison
@@ -75,12 +74,6 @@ equate t1 t2 = do
       equate s1 s2
       Just ((x,y), body1, _, body2) <- unbind2 bnd1 bnd2
       equate body1 body2
-
-    (TyEq a b, TyEq c d) -> do
-      equate a c
-      equate b d
-
-    (Refl _,  Refl _) -> return ()
 
     (Subst at1 _ _, at2) -> equate at1 at2
 
@@ -169,7 +162,8 @@ ensureTyEq :: Term -> TcMonad (Term,Term)
 ensureTyEq ty = do
   nf <- whnf ty
   case nf of
-    TyEq m n -> return (m, n)
+    ObsEq m n t -> return (m, n)
+    ResolvedObsEq m n t p -> return (m, n)
     _ -> err [DS "Expected an equality type, instead found", DD nf]
 
 
@@ -245,11 +239,10 @@ whnf (Let ep bnd)  = do
   whnf (subst x rhs body)
 
 
+-- FIXME: This may be unsound
 whnf (Subst tm pf annot) = do
   pf' <- whnf pf
-  case pf' of
-    Refl _ -> whnf tm
-    _ -> return (Subst tm pf' annot)
+  return (Subst tm pf' annot)
 
 
 whnf (Case scrut mtchs annot) = do
@@ -266,6 +259,33 @@ whnf (Case scrut mtchs annot) = do
     _ -> return (Case nf mtchs annot)
 
 
+whnf eq@(ObsEq a b ty) = do
+  na <- whnf a
+  nb <- whnf b
+
+  let fallback = (equate a b >> return TyUnit) `catchError` (\e -> return eq)
+  let resolve p = return $ ResolvedObsEq a b ty p
+
+  definitionally <- (Just <$> (equate na nb)) `catchError` (\e -> return Nothing)
+  case definitionally of
+    Just () -> resolve TyUnit
+    Nothing ->
+      case ty of
+        Pos _ x -> whnf (ObsEq a b x)
+        Paren x -> whnf (ObsEq a b x)
+        TyUnit -> resolve TyUnit
+        TyBool -> case (na, nb) of
+          (LitBool x, LitBool y) ->
+            resolve $ if x == y then TyUnit else TyEmpty
+          _ -> fallback
+        Pi ep bnd -> do
+          ((x, etyA), tyB) <- unbind bnd
+          case (na, nb) of
+            (Lam _ b1, Lam _ b2) ->
+              let app f = whnf $ App f (Arg ep (Var x)) in
+              resolve =<< Pi ep <$> (bind (x, etyA) <$> (ObsEq <$> app na <*> app nb <*> pure tyB))
+            _ -> fallback
+        _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
 
 -- all other terms are already in WHNF
 whnf tm = return tm

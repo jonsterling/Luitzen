@@ -213,6 +213,7 @@ instance Display Arg where
               Var _       -> bindParens ep
               TCon _ []   -> bindParens ep
               Type 0      -> bindParens ep
+              TyEmpty     -> bindParens ep
               TyUnit      -> bindParens ep
               LitUnit     -> bindParens ep
               TyBool      -> bindParens ep
@@ -224,7 +225,6 @@ instance Display Arg where
               DCon _ [] _ -> annotParens ep
               Prod _ _ _  -> annotParens ep
               TrustMe _   -> annotParens ep
-              Refl _      -> annotParens ep
               OrdAx _     -> annotParens ep
 
               _           -> mandatoryBindParens ep
@@ -287,6 +287,10 @@ instance Display Term where
     da <- display a
     db <- display b
     return $ da <+> text "<" <+> db
+
+  display (Refl ann evidence) = do
+    dev <- display evidence
+    return $ text "refl" <+> dev
 
   display (OrdAx ann) = do
     dann <- display ann
@@ -352,13 +356,18 @@ instance Display Term where
                      text "by" <+> db,
                      dat]
 
-  display (TyEq a b)   = do
-      da <- display a
-      db <- display b
-      return $ da <+> text "=" <+> db
-  display (Refl mty) = do
-    da <- display mty
-    return $ text "refl" <+> da
+  display (ObsEq a b t)   = do
+    da <- display a
+    db <- display b
+    dt <- display t
+    return $ da <+> text "==" <+> db <+> text ":" <+> dt
+
+  display (ResolvedObsEq a b t p)   = do
+    da <- display a
+    db <- display b
+    dt <- display t
+    dp <- display p
+    return $ da <+> text "==" <+> db <+> text ":" <+> dt <+> text "~~>" <+> dp
 
   display (Contra ty mty)  = do
      dty <- display ty
@@ -409,6 +418,7 @@ instance Display Term where
                 <+> text "else" <+> dc <+> dann
 
   display (TyUnit) = return $ text "One"
+  display (TyEmpty) = return $ text "Zero"
   display (LitUnit) = return $ text "tt"
 
 instance Display Match where

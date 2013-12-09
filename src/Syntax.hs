@@ -54,6 +54,9 @@ data Term =
    -- conveniences
    | TrustMe Annot         -- ^ an axiom 'TRUSTME', inhabits all types
 
+   -- empty
+   | TyEmpty               -- ^ The type with no inhabitant
+
    -- unit
    | TyUnit                -- ^ The type with a single inhabitant `One`
    | LitUnit               -- ^ The inhabitant, written tt
@@ -76,8 +79,9 @@ data Term =
      -- ^ elimination form  'pcase p of (x,y) -> p'
 
    -- equality
-   | TyEq Term Term     -- ^ Equality type  'a = b'
-   | Refl Annot         -- ^ Proof of equality
+   | Refl Annot Term
+   | ObsEq Term Term Term
+   | ResolvedObsEq Term Term Term Term
    | Subst Term Term (Maybe (Bind TName Term))
                         -- ^ equality elimination
    | Contra Term Annot  -- ^ witness to contradiction
@@ -241,6 +245,7 @@ instance Erase Term where
   erase (Pos sp t)      = erase t
   erase (TrustMe _)     = TrustMe noAnn
   erase (TyUnit)        = TyUnit
+  erase (TyEmpty)       = TyEmpty
   erase (LitUnit)       = LitUnit
   erase (TyBool)        = TyBool
   erase (LitBool b)     = LitBool b
@@ -250,8 +255,9 @@ instance Erase Term where
        Erased  -> erase body
     where ((x,unembed -> rhs),body) = unsafeUnbind bnd
 
-  erase (TyEq a b)      = TyEq (erase a) (erase b)
-  erase (Refl _)        = Refl noAnn
+  erase (Refl _ p)        = Refl noAnn (erase p)
+  erase (ObsEq a b t)     = ObsEq (erase a) (erase b) (erase t)
+  erase (ResolvedObsEq a b t p) = ResolvedObsEq (erase a) (erase b) (erase t) (erase p)
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed
   erase (Subst tm pf _) = erase tm
