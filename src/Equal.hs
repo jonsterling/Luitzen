@@ -60,6 +60,15 @@ equate t1 t2 = do
       equate rhs1 rhs2
       equate body1 body2
 
+    (ObsEq a1 b1 ann1, ObsEq a2 b2 ann2) -> do
+      equate a1 a2
+      equate b1 b2
+
+    (ResolvedObsEq a1 b1 p1, ResolvedObsEq a2 b2 p2) -> do
+      equate a1 a2
+      equate b1 b2
+      equate p1 p2
+
     (Sigma bnd1, Sigma bnd2) -> do
       Just ((x, unembed -> tyA1), tyB1,
             (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
