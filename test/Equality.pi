@@ -8,7 +8,10 @@ sym = \[A] [x] [y] pf .
 
 -- and transitive
 
-trans : [A:Type] [x:A] [y:A] [z:A] (p: x = z) (q: z = y) x = y
+trans : [A:Type] [x:A] [y:A] [z:A] (pf1: x = z) (pf2: z = y) x = y
 trans = \[A] [x] [y] [z] pf1 pf2 .
   subst pf1 by pf2 at h. x = h
+
+axiom resp : [A:Type] [B:Type] [x:A] [y:A] (f: A -> B) (p: x = y) -> f x = f y
+axiom Resp : [A:Type] [x:A] [y:A] [P: A -> Type] (h: x = y) -> P x = P y
 

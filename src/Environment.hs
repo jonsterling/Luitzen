@@ -102,12 +102,16 @@ lookupTyMaybe v = do
   ctx <- asks ctx
   return $ listToMaybe [ty | Sig  v' ty <- ctx, v == v']
 
+
 -- | Find the type of a name specified in the context
 -- throwing an error if the name doesn't exist
 lookupTy :: (MonadReader Env m, MonadError Err m)
          => TName -> m Term
 lookupTy v =
-  do x <- lookupTyMaybe v
+  do x <- do
+       t <- lookupTyMaybe v
+       h <- lookupHint v
+       return (h `mplus` t)
      gamma <- getLocalCtx
      case x of
        Just res -> return res

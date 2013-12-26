@@ -6,6 +6,7 @@
 --
 
 module Nat where
+import Equality
 
 data Nat : Type where
   Zero
@@ -35,7 +36,7 @@ sm_eq_Sn__m_eq_n : (m:Nat) -> (n:Nat) -> (Succ m = Succ n) -> m = n
 sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
   let pSm_eq_m    = (refl : pred (Succ m) = m) in
   let pSn_eq_n    = (refl : pred (Succ n) = n) in
-  let pSm_eq_pSn  = (subst (refl) by sm_eq_Sn
+  let pSm_eq_pSn  = (subst refl by sm_eq_Sn
                       at h.pred (Succ m) = pred h) in
   let m_eq_pSn    = subst pSm_eq_pSn
                     by pSm_eq_m
@@ -46,7 +47,7 @@ sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
 
 m_eq_n_Sm_eq_Sn : (m:Nat) -> (n:Nat) -> m = n -> (Succ m = Succ n)
 m_eq_n_Sm_eq_Sn = \m n pf .
-  subst (refl) by pf at x. (Succ m = Succ x)
+  subst refl by pf at x. (Succ m = Succ x)
 
 nat_eq : Nat -> Nat -> Bool
 ind nat_eq x = \ y .
@@ -63,6 +64,24 @@ ind plus n = \m .
   case n of
     Zero -> m
     Succ pred -> Succ (plus pred m)
+
+plus0 : Nat -> Nat
+plus0 = \x . plus x 0
+
+plus0' : Nat -> Nat
+plus0' = plus 0
+
+plus0plus0' : plus0 = plus0'
+ind plus0plus0' x =
+  case x of
+    Zero -> refl
+    Succ n -> resp [Nat] [Nat] [plus0 n] [plus0' n] (\y. Succ y) (plus0plus0' n)
+
+test : Nat
+test = subst 0 by plus0plus0' at h. Nat
+
+testCanonical : test = 0
+testCanonical = refl
 
 mult : Nat -> Nat -> Nat
 ind mult n = \m .
@@ -112,5 +131,5 @@ plus_associates = ind pa i = \j k .
     -- S ((i'+j)+k) = S (i'+(j+k))
     Succ i' ->
       let ih = (pa i' j k : plus (plus i' j) k = plus i' (plus j k))
-      in subst (refl) by ih at x. Succ (plus (plus i' j) k) = Succ x
+      in subst refl by ih at x. Succ (plus (plus i' j) k) = Succ x
 
