@@ -11,7 +11,7 @@ import Environment
 
 import Unbound.LocallyNameless hiding (Data, Refl)
 import Control.Monad.Error (catchError, zipWithM, zipWithM_)
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>), (<$), pure)
 
 -- | compare two expressions for equality
 -- ignores type annotations during comparison
@@ -275,10 +275,10 @@ whnf eq@(ObsEq a b annot) = do
   na <- whnf a
   nb <- whnf b
 
-  let fallback = (equate a b >> return TyUnit) `catchError` (\e -> return eq)
+  let fallback = (TyUnit <$ equate a b) `catchError` (\e -> return eq)
   let resolve p = return $ ResolvedObsEq a b p
 
-  definitionally <- (Just <$> (equate na nb)) `catchError` (\e -> return Nothing)
+  definitionally <- (Just <$> equate na nb) `catchError` (\e -> return Nothing)
   case definitionally of
     Just () -> resolve TyUnit
     Nothing ->
@@ -311,7 +311,7 @@ patternMatches (Arg _ t) (PatVar x) = return [(x, t)]
 patternMatches (Arg Runtime t) pat@(PatCon d' pats) = do
   nf <- whnf t
   case nf of
-    (DCon d args _) | d == d' ->
+    DCon d args _ | d == d' ->
        concat <$> zipWithM patternMatches args (map fst pats)
     _ -> err [DS "arg", DD nf, DS "doesn't match pattern", DD pat]
 patternMatches (Arg Erased _) pat@(PatCon _ _) =
