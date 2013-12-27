@@ -72,7 +72,7 @@ plus0' : Nat -> Nat
 plus0' = plus 0
 
 plus0plus0' : plus0 = plus0'
-ind plus0plus0' x =
+plus0plus0' = \x .
   case x of
     Zero -> refl
     Succ n -> resp [Nat] [Nat] [plus0 n] [plus0' n] (\y. Succ y) (plus0plus0' n)

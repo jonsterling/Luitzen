@@ -144,6 +144,7 @@ ensureType ty = do
   nf <- whnf ty
   case nf of
     Type i -> return i
+    ResolvedObsEq _ _ ev -> ensureType ev
     _  -> err [DS "Expected a Type i, instead found", DD nf]
 
 -- | Ensure that the given type 'ty' is some sort of 'Pi' type
@@ -154,12 +155,13 @@ ensurePi :: Term -> TcMonad (Epsilon, TName, Term, Term, Maybe Term)
 ensurePi ty = do
   nf <- whnf ty
   case nf of
-    (Pi ep bnd) -> do
+    Pi ep bnd -> do
       ((x, unembed -> tyA), tyB) <- unbind bnd
       return (ep, x, tyA, tyB, Nothing)
-    (PiC ep bnd) -> do
+    PiC ep bnd -> do
       ((x, unembed -> tyA), (constr, tyB)) <- unbind bnd
       return (ep, x, tyA, tyB, Just constr)
+    ResolvedObsEq _ _ ev -> ensurePi ev
     _ -> err [DS "Expected a function type, instead found", DD nf]
 
 
@@ -183,7 +185,8 @@ ensureTCon :: Term -> TcMonad (TCName, [Term])
 ensureTCon aty = do
   nf <- whnf aty
   case nf of
-    (TCon n params) -> return (n, params)
+    TCon n params -> return (n, params)
+    ResolvedObsEq _ _ ev -> ensureTCon ev
     _ -> err [DS "Expected a data type",
               DS ", but found", DD nf]
 
