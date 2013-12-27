@@ -216,8 +216,6 @@ instance Display Arg where
               TyEmpty     -> bindParens ep
               TyUnit      -> bindParens ep
               LitUnit     -> bindParens ep
-              TyBool      -> bindParens ep
-              LitBool b   -> bindParens ep
               Sigma _     -> bindParens ep
 
               Pos _ a     -> wraparg (Arg ep a)
@@ -404,16 +402,6 @@ instance Display Term where
       return $ text "pcase" <+> da <+> text "of"
         <+> text "(" <+> dx <+> text "," <+> dy <+> text ")"
         <+> text "->" <+> dbody <+> dann
-
-  display (TyBool) = return $ text "Bool"
-  display (LitBool b) = return $ if b then text "True" else text "False"
-  display (If a b c ann) = do
-    da <- display a
-    db <- display b
-    dc <- display c
-    dann <- display ann
-    return $ text "if" <+> da <+> text "then" <+> db
-                <+> text "else" <+> dc <+> dann
 
   display (TyUnit) = return $ text "One"
   display (TyEmpty) = return $ text "Zero"

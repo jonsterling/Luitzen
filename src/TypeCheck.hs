@@ -151,24 +151,6 @@ tcTerm (TrustMe ann1) ann2 = do
 tcTerm (TyEmpty) Nothing = return (TyEmpty, Type 0)
 tcTerm (TyUnit) Nothing = return (TyUnit, Type 0)
 tcTerm (LitUnit) Nothing = return (LitUnit, TyUnit)
-tcTerm (TyBool) Nothing = return (TyBool,Type 0)
-tcTerm (LitBool b) Nothing = return (LitBool b, TyBool)
-
-
-tcTerm (If t1 t2 t3 ann1) ann2 = do
-  (at1,_) <- checkType t1 TyBool
-  ann <- matchAnnots ann1 ann2
-  nf <- whnf at1
-  let ctx b = case nf of
-        Var x -> [Def x (LitBool b)]
-        _     -> []
-  case ann of
-    Just ty -> do
-      (at2, _) <- extendCtxs (ctx True) $ checkType t2 ty
-      (at3, _) <- extendCtxs (ctx False) $ checkType t3 ty
-      return (If at1 at2 at3 (Annot ann), ty)
-    Nothing -> err [DS "Annotation required"]
-
 
 tcTerm (Let ep bnd) ann = do
   ((x,unembed->rhs),body) <- unbind bnd
@@ -376,8 +358,6 @@ tcTerm t@(Contra p ann1) ann2 =  do
       b' <- whnf b
       case (a',b') of
         (DCon da _ _, DCon db _ _) | da /= db ->
-          return (Contra apf (Annot (Just ty)), ty)
-        (LitBool b1, LitBool b2) | b1 /= b2 ->
           return (Contra apf (Annot (Just ty)), ty)
         (_,_) -> err [DS "I can't tell that", DD a, DS "and", DD b,
                       DS "are contradictory"]

@@ -7,6 +7,7 @@
 
 module Nat where
 import Equality
+import Bool
 
 data Nat : Type where
   Zero
@@ -14,8 +15,8 @@ data Nat : Type where
 
 is_zero : Nat -> Bool
 is_zero = \ x . case x of
-  Zero -> True
-  Succ n' -> False
+  Zero -> true
+  Succ n' -> false
 
 pred : Nat -> Nat
 pred = \n . case n of
@@ -53,10 +54,10 @@ nat_eq : Nat -> Nat -> Bool
 ind nat_eq x = \ y .
   case x of
      Zero -> case y of
-        Zero -> True
-        Succ n -> False
+        Zero -> true
+        Succ n -> false
      Succ m -> case y of
-        Zero -> False
+        Zero -> false
         Succ n -> nat_eq m n
 
 plus : Nat -> Nat -> Nat
@@ -77,10 +78,10 @@ plus0plus0' = \x .
     Zero -> refl
     Succ n -> resp [Nat] [Nat] [plus0 n] [plus0' n] (\y. Succ y) (plus0plus0' n)
 
-test : Nat
-test = subst 0 by plus0plus0' at h. Nat
+testSubst : Nat
+testSubst = subst 0 by plus0plus0' at h. Nat
 
-testCanonical : test = 0
+testCanonical : testSubst = 0
 testCanonical = refl
 
 mult : Nat -> Nat -> Nat

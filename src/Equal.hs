@@ -20,113 +20,106 @@ equate :: Term -> Term -> TcMonad ()
 equate t1 t2 = do
   n1 <- whnf t1
   n2 <- whnf t2
-  case (n1, n2) of
-    (Var x,  Var y)  | x == y -> return ()
-    (Lam ep1 bnd1, Lam ep2 bnd2) | ep1 == ep2 -> do
-      Just (x, b1, _, b2) <- unbind2 bnd1 bnd2
-      equate b1 b2
-    (App a1 a2, App b1 b2) -> do
-      equate a1 b1
-      equateArgs a2 b2
-    (Type i, Type j) | i == j -> return ()
-    (Pi ep1 bnd1, Pi ep2 bnd2) | ep1 == ep2 -> do
-      Just ((x, unembed -> tyA1), tyB1,
-            (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
-      equate tyA1 tyA2
-      equate tyB1 tyB2
+  case t1 `aeq` t2 of
+    True -> pure ()
+    False ->
+      case (n1, n2) of
+        (Var x,  Var y)  | x == y -> pure ()
+        (Lam ep1 bnd1, Lam ep2 bnd2) | ep1 == ep2 -> do
+          Just (x, b1, _, b2) <- unbind2 bnd1 bnd2
+          equate b1 b2
+        (App a1 a2, App b1 b2) -> do
+          equate a1 b1
+          equateArgs a2 b2
+        (Type i, Type j) | i == j -> pure ()
+        (Pi ep1 bnd1, Pi ep2 bnd2) | ep1 == ep2 -> do
+          Just ((x, unembed -> tyA1), tyB1,
+                (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
+          equate tyA1 tyA2
+          equate tyB1 tyB2
 
-    (Ann at1 _, at2) -> equate at1 at2
-    (at1, Ann at2 _) -> equate at1 at2
-    (Paren at1, at2) -> equate at1 at2
-    (at1, Paren at2) -> equate at1 at2
-    (Pos _ at1, at2) -> equate at1 at2
-    (at1, Pos _ at2) -> equate at1 at2
+        (Ann at1 _, at2) -> equate at1 at2
+        (at1, Ann at2 _) -> equate at1 at2
+        (Paren at1, at2) -> equate at1 at2
+        (at1, Paren at2) -> equate at1 at2
+        (Pos _ at1, at2) -> equate at1 at2
+        (at1, Pos _ at2) -> equate at1 at2
 
-    (TrustMe _, TrustMe _) ->  return ()
+        (TrustMe _, TrustMe _) -> pure ()
 
-    (TyUnit, TyUnit)   -> return ()
-    (LitUnit, LitUnit) -> return ()
+        (Let ep1 bnd1, Let ep2 bnd2) | ep1 == ep2 -> do
+          Just ((x,unembed -> rhs1), body1,
+                (_,unembed -> rhs2), body2) <- unbind2 bnd1 bnd2
+          equate rhs1 rhs2
+          equate body1 body2
 
-    (TyBool, TyBool)   -> return ()
+        (ObsEq a1 b1 ann1, ObsEq a2 b2 ann2) -> do
+          equate a1 a2
+          equate b1 b2
 
-    (LitBool b1, LitBool b2) | b1 == b2 -> return ()
+        (ResolvedObsEq a1 b1 p1, ResolvedObsEq a2 b2 p2) -> do
+          equate a1 a2
+          equate b1 b2
+          equate p1 p2
 
-    (If a1 b1 c1 _, If a2 b2 c2 _) ->
-      equate a1 a2 >> equate b1 b2 >> equate c1 c2
+        (Sigma bnd1, Sigma bnd2) -> do
+          Just ((x, unembed -> tyA1), tyB1,
+                (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
+          equate tyA1 tyA2
+          equate tyB1 tyB2
 
-    (Let ep1 bnd1, Let ep2 bnd2) | ep1 == ep2 -> do
-      Just ((x,unembed -> rhs1), body1,
-            (_,unembed -> rhs2), body2) <- unbind2 bnd1 bnd2
-      equate rhs1 rhs2
-      equate body1 body2
+        (Prod a1 b1 _, Prod a2 b2 _) -> do
+          equate a1 a2
+          equate b1 b2
 
-    (ObsEq a1 b1 ann1, ObsEq a2 b2 ann2) -> do
-      equate a1 a2
-      equate b1 b2
+        (Pcase s1 bnd1 _, Pcase s2 bnd2 _) -> do
+          equate s1 s2
+          Just ((x,y), body1, _, body2) <- unbind2 bnd1 bnd2
+          equate body1 body2
 
-    (ResolvedObsEq a1 b1 p1, ResolvedObsEq a2 b2 p2) -> do
-      equate a1 a2
-      equate b1 b2
-      equate p1 p2
+        (Subst at1 _ _, at2) -> equate at1 at2
 
-    (Sigma bnd1, Sigma bnd2) -> do
-      Just ((x, unembed -> tyA1), tyB1,
-            (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
-      equate tyA1 tyA2
-      equate tyB1 tyB2
+        (at1, Subst at2 _ _) -> equate at1 at2
 
-    (Prod a1 b1 _, Prod a2 b2 _) -> do
-      equate a1 a2
-      equate b1 b2
-
-    (Pcase s1 bnd1 _, Pcase s2 bnd2 _) -> do
-      equate s1 s2
-      Just ((x,y), body1, _, body2) <- unbind2 bnd1 bnd2
-      equate body1 body2
-
-    (Subst at1 _ _, at2) -> equate at1 at2
-
-    (at1, Subst at2 _ _) -> equate at1 at2
-
-    (Contra a1 _, Contra a2 _) -> return ()
+        (Contra a1 _, Contra a2 _) -> return ()
 
 
-    (TCon c1 ts1, TCon c2 ts2) | c1 == c2 ->
-      zipWithM_ equate ts1 ts2
-    (DCon d1 a1 _, DCon d2 a2 _) | d1 == d2 ->
-      zipWithM_ equateArgs a1 a2
-    (Case s1 brs1 ann1, Case s2 brs2 ann2)
-      | length brs1 == length brs2 -> do
-      equate s1 s2
-      -- require branches to be in the same order
-      -- on both expressions
-      let matchBr (Match bnd1) (Match bnd2) = do
-            mpb <- unbind2 bnd1 bnd2
-            case mpb of
-              Just (p1, a1, p2, a2) | p1 == p2 -> equate a1 a2
-              _ -> err [DS "Cannot match branches in", DD n1, DS "and", DD n2]
-      zipWithM_ matchBr brs1 brs2
+        (TCon c1 ts1, TCon c2 ts2) | c1 == c2 ->
+          zipWithM_ equate ts1 ts2
+        (DCon d1 a1 _, DCon d2 a2 _) | d1 == d2 ->
+          zipWithM_ equateArgs a1 a2
+        (Case s1 brs1 ann1, Case s2 brs2 ann2)
+          | length brs1 == length brs2 -> do
+          equate s1 s2
+          -- require branches to be in the same order
+          -- on both expressions
+          let matchBr (Match bnd1) (Match bnd2) = do
+                mpb <- unbind2 bnd1 bnd2
+                case mpb of
+                  Just (p1, a1, p2, a2) | p1 == p2 -> equate a1 a2
+                  _ -> err [DS "Cannot match branches in", DD n1, DS "and", DD n2]
+          zipWithM_ matchBr brs1 brs2
 
-    (Smaller a b, Smaller c d) ->
-      equate a c >> equate b d
+        (Smaller a b, Smaller c d) ->
+          equate a c >> equate b d
 
-    (Ind ep1 bnd1 ann1, Ind ep2 bnd2 ann2) | ep1 == ep2 -> do
-      Just ((f,x), b1, _, b2) <- unbind2 bnd1 bnd2
-      equate b1 b1
+        (Ind ep1 bnd1 ann1, Ind ep2 bnd2 ann2) | ep1 == ep2 -> do
+          Just ((f,x), b1, _, b2) <- unbind2 bnd1 bnd2
+          equate b1 b1
 
-    (PiC ep1 bnd1, PiC ep2 bnd2) | ep1 == ep2 -> do
-      Just ((x, unembed -> tyA1), (c1, tyB1),
-            (_, unembed -> tyA2), (c2, tyB2)) <- unbind2 bnd1 bnd2
-      equate tyA1 tyA2
-      equate c1 c2
-      equate tyB1 tyB2
+        (PiC ep1 bnd1, PiC ep2 bnd2) | ep1 == ep2 -> do
+          Just ((x, unembed -> tyA1), (c1, tyB1),
+                (_, unembed -> tyA2), (c2, tyB2)) <- unbind2 bnd1 bnd2
+          equate tyA1 tyA2
+          equate c1 c2
+          equate tyB1 tyB2
 
 
-    (_,_) -> do
-      gamma <- getLocalCtx
-      err [DS "Expected", DD t2, DS "which normalizes to", DD n2,
-           DS "but found", DD t1,  DS "which normalizes to", DD n1,
-           DS "in context:", DD gamma]
+        (_,_) -> do
+          gamma <- getLocalCtx
+          err [DS "Expected", DD t2, DS "which normalizes to", DD n2,
+               DS "but found", DD t1,  DS "which normalizes to", DD n1,
+               DS "in context:", DD gamma]
 
 -- | Note: ignores erased args during comparison
 equateArgs :: Arg -> Arg -> TcMonad ()
@@ -222,14 +215,6 @@ whnf (App t1 arg@(Arg _ t2)) = do
 
     _ -> return $ App nf arg
 
-
-
-whnf (If t1 t2 t3 ann) = do
-  nf <- whnf t1
-  case nf of
-    (LitBool b) -> whnf (if b then t2 else t3)
-    _ -> return (If nf t2 t3 ann)
-
 whnf (Pcase a bnd ann) = do
   nf <- whnf a
   case nf of
@@ -286,16 +271,14 @@ whnf eq@(ObsEq a b annot) = do
         Annot (Just ty) ->
           case ty of
             TyUnit -> resolve TyUnit
-            TyBool -> case (na, nb) of
-              (LitBool x, LitBool y) ->
-                resolve $ if x == y then TyUnit else TyEmpty
-              _ -> fallback
             Pi ep bnd -> do
               ((x, etyA), tyB) <- unbind bnd
               case (na, nb) of
                 (Lam _ b1, Lam _ b2) ->
                   let app f = whnf $ App f (Arg ep (Var x)) in
-                  resolve =<< Pi ep <$> (bind (x, etyA) <$> (ObsEq <$> app na <*> app nb <*> pure (Annot (Just tyB))))
+                  let evidence = Annot (Just tyB) in
+                  let body = ObsEq <$> app na <*> app nb <*> pure evidence in
+                  Pi ep <$> (bind (x, etyA) <$> body) >>= resolve
                 _ -> fallback
             _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
         _ -> fallback

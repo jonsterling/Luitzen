@@ -1,24 +1,21 @@
-module Boolean where
+module Bool where
 
-data Boolean : Type where
-  T
-  F
+data Bool : Type where
+  true
+  false
 
-not : Boolean -> Boolean
+not : Bool -> Bool
 ind not x = case x of
-  T -> F
-  F -> T
+  true -> false
+  false -> true
 
-id : Boolean -> Boolean
+id : Bool -> Bool
 id = \x . x
 
-notnot : Boolean -> Boolean
+notnot : Bool -> Bool
 notnot = \x. not (not x)
 
-test : not (not F) = F
-test = refl
-
-test2 : id = notnot
-test2 = \x. case x of
-  T -> refl
-  F -> refl
+idnotnot : id = notnot
+ind idnotnot x = case x of
+  true -> refl
+  false -> refl

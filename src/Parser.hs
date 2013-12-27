@@ -55,10 +55,6 @@ Optional components in this BNF are marked with < >
     | One                      Unit type
     | tt                       Unit value
 
-    | Bool                     Boolean type
-    | True | False             Boolean values
-    | if a then b else c       If
-
     | { x : A | B }            Dependent pair type
     | (a, b)                   Prod introduction
     | pcase a of (x,y) -> b    Prod elimination
@@ -198,8 +194,6 @@ trellysStyle = Token.LanguageDef
                   ,"TRUSTME"
                   ,"ord"
                   , "pcase"
-                  , "Bool", "True", "False"
-                  ,"if","then","else"
                   , "One", "tt"
                   ]
                , Token.reservedOpNames =
@@ -440,7 +434,6 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , trustme    <?> "TRUSTME"
                 , impProd    <?> "an implicit function type"
                 , bconst     <?> "a constant"
-                , ifExpr     <?> "an if expression"
                 , sigmaTy    <?> "a sigma type"
                 , expProdOrAnnotOrParens
                     <?> "an explicit function type or annotated expression"
@@ -498,19 +491,8 @@ ind = do
 
 
 bconst  :: LParser Term
-bconst = choice [TyBool <$ reserved "Bool",
-                 LitBool False <$ reserved "False",
-                 LitBool True <$ reserved "True",
-                 TyUnit <$ reserved "One",
+bconst = choice [TyUnit <$ reserved "One",
                  LitUnit <$ reserved "tt"]
-
-ifExpr :: LParser Term
-ifExpr = If
-     <$> (reserved "if" *> expr)
-     <*> (reserved "then" *> expr)
-     <*> (reserved "else" *> expr)
-     <*> return (Annot Nothing)
-
 --
 letExpr :: LParser Term
 letExpr =

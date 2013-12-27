@@ -61,12 +61,6 @@ data Term =
    | TyUnit                -- ^ The type with a single inhabitant `One`
    | LitUnit               -- ^ The inhabitant, written tt
 
-   -- boolean expressions
-   | TyBool
-   | LitBool Bool
-   | If Term Term Term Annot
-
-   -- homework let expression
    | Let Epsilon (Bind (TName, Embed Term) Term)
      -- ^ let expression, introduces a new definition in the ctx
 
@@ -247,9 +241,6 @@ instance Erase Term where
   erase (TyUnit)        = TyUnit
   erase (TyEmpty)       = TyEmpty
   erase (LitUnit)       = LitUnit
-  erase (TyBool)        = TyBool
-  erase (LitBool b)     = LitBool b
-  erase (If a b c _)    = If (erase a) (erase b) (erase c) noAnn
   erase (Let ep bnd)    = case ep of
        Runtime -> Let Runtime (bind (x,embed (erase rhs)) (erase body))
        Erased  -> erase body
