@@ -149,15 +149,11 @@ data Decl = Sig     TName  Term
           | Data    TCName Telescope Int [ConstructorDef]
             -- ^ Declaration for a datatype including all of
             -- its data constructors
-          | AbsData TCName Telescope Int
-            -- ^ An abstract view of a type constructor. Does
-            -- not include any information about its data
-            -- constructors
-  deriving (Show)
+  deriving Show
 
 -- | A Data constructor has a name and a telescope of arguments
 data ConstructorDef = ConstructorDef SourcePos DCName Telescope
-  deriving (Show)
+  deriving Show
 
 -------------
 -- * Telescopes

@@ -120,11 +120,6 @@ instance Disp Decl where
            <+> text "where")
            2 (vcat $ map disp constructors)
 
-  disp (AbsData t delta lev) =
-        text "data" <+> disp t <+> disp delta <+> colon
-    <+> text "Type" <+> text (show lev)
-
-
 instance Disp ConstructorDef where
   disp (ConstructorDef _ c Empty) = text c
   disp (ConstructorDef _ c tele)  = text c <+> text "of" <+> disp tele

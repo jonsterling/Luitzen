@@ -642,7 +642,7 @@ tcEntry (Axiom n ty) = do
   return $ AddCtx [Sig n ety, Def n (TrustMe (Annot (Just ety)))]
 
 -- rule Decl_data
-tcEntry (Data t delta lev cs) =
+tcEntry decl@(Data t delta lev cs) =
   do -- Check that the telescope for the datatype definition is well-formed
      (edelta, i) <- tcTypeTele delta
      ---- check that the telescope provided
@@ -650,7 +650,7 @@ tcEntry (Data t delta lev cs) =
      ---  TODO: worry about universe levels also?
      let elabConstructorDef defn@(ConstructorDef pos d tele) =
             extendSourceLocation pos defn $
-              extendCtx (AbsData t edelta lev) $
+              extendCtx decl $
                 extendCtxTele edelta $ ConstructorDef pos d . fst <$> tcTypeTele tele
      ecs <- mapM elabConstructorDef cs
      -- check that types are strictly positive.
@@ -661,7 +661,6 @@ tcEntry (Data t delta lev cs) =
        err [DS "Datatype definition", DD t, DS"contains duplicated constructors" ]
      -- finally, add the datatype to the env and perform action m
      return $ AddCtx [Data t edelta lev ecs]
-tcEntry AbsData{} = err [DS "internal construct"]
 
 
 -- | Make sure that we don't have the same name twice in the
