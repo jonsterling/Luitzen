@@ -315,6 +315,7 @@ instance Display Term where
             Pos _ a       -> wrapf a
             Ann _ _       -> id
             TrustMe _     -> id
+            Hole _ _      -> braces
             _             -> parens
      return $ wrapf f df <+> dx
 
@@ -378,6 +379,11 @@ instance Display Term where
   display (TrustMe ma)  = do
     da <- display ma
     return $ text "TRUSTME" <+> da
+
+  display (Hole n (Annot mTy))   = do
+    dn <- display n
+    da <- maybe (return $ text "??") display mTy
+    return $ text "{" <+> dn <+> text ":" <+> da <+> text "}"
 
   display (Sigma bnd) =
     lunbind bnd $ \ ((x,unembed->tyA),tyB) -> do

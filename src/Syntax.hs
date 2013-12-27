@@ -53,6 +53,7 @@ data Term =
 
    -- conveniences
    | TrustMe Annot         -- ^ an axiom 'TRUSTME', inhabits all types
+   | Hole TName Annot
 
    -- empty
    | TyEmpty               -- ^ The type with no inhabitant
@@ -94,7 +95,7 @@ data Term =
    | PiC Epsilon (Bind (TName, Embed Term)
           (Term,Term))
       -- ^ constrained function type '[ x : Nat | x < y ] -> B'
-                 deriving (Show)
+   deriving Show
 
 -- | An 'Annot' is optional type information
 newtype Annot = Annot (Maybe Term) deriving Show
@@ -238,6 +239,7 @@ instance Erase Term where
   erase (Paren t1)      = erase t1
   erase (Pos sp t)      = erase t
   erase (TrustMe _)     = TrustMe noAnn
+  erase (Hole n _ )     = Hole n noAnn
   erase (TyUnit)        = TyUnit
   erase (TyEmpty)       = TyEmpty
   erase (LitUnit)       = LitUnit

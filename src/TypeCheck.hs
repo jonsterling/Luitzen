@@ -144,6 +144,9 @@ tcTerm (Ann tm ty) Nothing = do
 tcTerm (Pos p tm) mTy = extendSourceLocation p tm $ tcTerm tm mTy
 tcTerm (Paren tm) mTy = tcTerm tm mTy
 
+tcTerm (Hole name ann1) ann2 = do
+  Just expectedTy <- matchAnnots ann1 ann2
+  return (Hole name (Annot (Just expectedTy)), expectedTy)
 tcTerm (TrustMe ann1) ann2 = do
   Just expectedTy <- matchAnnots ann1 ann2
   return (TrustMe (Annot (Just expectedTy)), expectedTy)

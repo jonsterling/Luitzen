@@ -14,4 +14,3 @@ trans = \[A] [x] [y] [z] pf1 pf2 .
 
 axiom resp : [A:Type] [B:Type] [x:A] [y:A] (f: A -> B) (p: x = y) -> f x = f y
 axiom Resp : [A:Type] [x:A] [y:A] [P: A -> Type] (h: x = y) -> P x = P y
-

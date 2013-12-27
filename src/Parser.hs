@@ -49,6 +49,7 @@ Optional components in this BNF are marked with < >
     | (a : A)                  Annotations
     | (a)                      Parens
     | TRUSTME                  An axiom 'TRUSTME', inhabits all types
+    | {?x}                     A hole named x
 
     | let x = a in b           Let expression
 
@@ -193,8 +194,8 @@ trellysStyle = Token.LanguageDef
                   ,"erased"
                   ,"TRUSTME"
                   ,"ord"
-                  , "pcase"
-                  , "One", "tt"
+                  ,"pcase"
+                  ,"One", "tt"
                   ]
                , Token.reservedOpNames =
                  ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_","|","{", "}"]
@@ -265,10 +266,10 @@ reserved,reservedOp :: String -> LParser ()
 reserved = Token.reserved tokenizer
 reservedOp = Token.reservedOp tokenizer
 
-parens,brackets :: LParser a -> LParser a
+parens,brackets,braces :: LParser a -> LParser a
 parens = Token.parens tokenizer
 brackets = Token.brackets tokenizer
--- braces = Token.braces tokenizer
+braces = Token.braces tokenizer
 
 natural :: LParser Int
 natural = fromInteger <$> Token.natural tokenizer
@@ -371,6 +372,11 @@ indDef = do
 trustme :: LParser Term
 trustme = TrustMe (Annot Nothing) <$ reserved "TRUSTME"
 
+hole :: LParser Term
+hole = Hole <$> name <*> return (Annot Nothing)
+  where
+    name = braces $ string2Name <$> (reservedOp "?" *> many (noneOf "{}"))
+
 refl :: LParser Term
 refl = do
   reserved "refl"
@@ -432,6 +438,7 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , ordax      <?> "ord"
                 , refl       <?> "refl"
                 , trustme    <?> "TRUSTME"
+                , hole       <?> "hole"
                 , impProd    <?> "an implicit function type"
                 , bconst     <?> "a constant"
                 , sigmaTy    <?> "a sigma type"
