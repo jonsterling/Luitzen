@@ -14,8 +14,8 @@ ind idnotnot x = case x of
   false -> refl
 
 -- ## A demonstration of quotient types
--- This isn't as interesting as -- the proper Interval type, since UIP holds in
--- OTT (and thence it -- is provable that seg = refl).
+-- This isn't as interesting as the proper Interval type, since UIP holds in
+-- OTT (and thence it is provable that seg = refl).
 Interval : Type
 Interval = Bool / (\x y. One)
 
