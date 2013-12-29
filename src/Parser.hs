@@ -72,6 +72,8 @@ Optional components in this BNF are marked with < >
     | contra a                 Contra
     | refl p                   Equality proof with evidence
 
+    | trivial                  Trivial tactic
+
     | C a ...                  Type / Term constructors
     | case a [y] of            Pattern matching
         C1 [x] y z -> b1
@@ -205,6 +207,7 @@ trellysStyle = Token.LanguageDef
                   ,"ord"
                   ,"pcase"
                   ,"expose"
+                  ,"trivial"
                   ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
@@ -387,6 +390,9 @@ hole = Hole <$> name <*> return (Annot Nothing)
   where
     name = braces $ string2Name <$> (reservedOp "?" *> many (noneOf "{}"))
 
+trivialTactic :: LParser Term
+trivialTactic = Trivial (Annot Nothing) <$ reserved "trivial"
+
 refl :: LParser Term
 refl = do
   reserved "refl"
@@ -452,6 +458,7 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , substExpr  <?> "a subst"
                 , ordax      <?> "ord"
                 , refl       <?> "refl"
+                , trivialTactic <?> "the trivial tactic"
                 , trustme    <?> "TRUSTME"
                 , hole       <?> "hole"
                 , impProd    <?> "an implicit function type"

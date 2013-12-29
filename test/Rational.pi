@@ -27,7 +27,7 @@ twoFourths : Rational
 twoFourths = <(pos 2, (4, \[p]. contra p))>
 
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
-oneHalfEqualsTwoFourths = refl refl
+oneHalfEqualsTwoFourths = trivial
 
 numerator' : PreRational -> Integer
 numerator' = \p. pcase p of (n, d) -> n

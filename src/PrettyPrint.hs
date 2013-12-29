@@ -301,6 +301,13 @@ instance Display Term where
     db <- display b
     return $ da <+> text "<" <+> db
 
+  display (Trivial (Annot mty)) = do
+    case mty of
+      Just ty -> do
+        dty <- display ty
+        return $ text "trivial :" <+>  dty
+      Nothing -> return $ text "trivial"
+
   display (Refl ann evidence) = do
     dev <- display evidence
     return $ text "refl" <+> dev

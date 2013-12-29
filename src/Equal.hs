@@ -255,11 +255,11 @@ whnf (Let ep bnd)  = do
   ((x,unembed->rhs),body) <- unbind bnd
   whnf (subst x rhs body)
 
-
 -- FIXME: This may be unsound
 whnf (Subst tm pf annot) = do
+  tm' <- whnf tm
   pf' <- whnf pf
-  return (Subst tm pf' annot)
+  return (Subst tm' pf' annot)
 
 
 whnf (Case scrut mtchs annot) = do

@@ -80,9 +80,11 @@ data Term =
    | Refl Annot Term
    | ObsEq Term Term Annot Annot
    | ResolvedObsEq Term Term Term
-   | Subst Term Term (Maybe (Bind TName Term))
-                        -- ^ equality elimination
+   | Subst Term Term (Maybe (Bind TName Term)) -- ^ equality elimination
    | Contra Term Annot  -- ^ witness to contradiction
+
+   -- tactics
+   | Trivial Annot
 
    -- inductive datatypes
    | TCon TCName [Term]      -- ^ type constructors (fully applied)
@@ -251,7 +253,8 @@ instance Erase Term where
     where ((x,unembed -> rhs),body) = unsafeUnbind bnd
 
   erase (Refl _ p)        = Refl noAnn (erase p)
-  erase (ObsEq a b s t)     = ObsEq (erase a) (erase b) noAnn noAnn
+  erase (Trivial _ )      = Trivial noAnn
+  erase (ObsEq a b s t)   = ObsEq (erase a) (erase b) noAnn noAnn
   erase (ResolvedObsEq a b p) = ResolvedObsEq (erase a) (erase b) (erase p)
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed

@@ -347,6 +347,13 @@ tcTerm (Ind ep1 bnd ann1) ann2 = do
     Nothing ->
       err [DS "Ind expression should be annotated with its type"]
 
+tcTerm t@(Trivial ann1) ann2 = do
+  ann@(Just ty) <- matchAnnots ann1 ann2
+  nty <- whnf ty
+  case nty of
+    TyUnit -> return (LitUnit, nty)
+    ResolvedObsEq x y ev -> tcTerm (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) (Just nty)
+    _ -> err [DS "Trivial tactic not effective for", DD ty]
 
 tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2

@@ -4,7 +4,7 @@ module Equality where
 
 sym : [A:Type] [x:A] [y:A] (pf: x = y) y = x
 sym = \[A] [x] [y] pf .
-  subst (refl tt) by pf at h. h = x
+  subst refl by pf at h. h = x
 
 -- and transitive
 
