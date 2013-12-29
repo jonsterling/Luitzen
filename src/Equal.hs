@@ -14,11 +14,6 @@ import Control.Monad.Error (catchError, zipWithM, zipWithM_)
 import Control.Applicative ((<$>), (<*>), (<$), pure)
 import Debug.Trace
 
-equateAnn :: Annot -> Annot -> TcMonad ()
-equateAnn (Annot Nothing) (Annot Nothing) = return ()
-equateAnn (Annot (Just s)) (Annot (Just t)) = equate s t
-equateAnn ann1 ann2 = err [DS "Could not equate annotations"]
-
 -- | compare two expressions for equality
 -- ignores type annotations during comparison
 -- throws an error if the two types cannot be matched up
@@ -145,7 +140,6 @@ ensureType ty = do
   nf <- whnf ty
   case nf of
     Type i -> return i
-    ResolvedObsEq _ _ ev -> ensureType ev
     _  -> err [DS "Expected a Type i, instead found", DD nf]
 
 -- | Ensure that the given type 'ty' is some sort of 'Pi' type
@@ -162,7 +156,6 @@ ensurePi ty = do
     PiC ep bnd -> do
       ((x, unembed -> tyA), (constr, tyB)) <- unbind bnd
       return (ep, x, tyA, tyB, Just constr)
-    ResolvedObsEq _ _ ev -> ensurePi ev
     _ -> err [DS "Expected a function type, instead found", DD nf]
 
 
@@ -187,7 +180,6 @@ ensureTCon aty = do
   nf <- whnf aty
   case nf of
     TCon n params -> return (n, params)
-    ResolvedObsEq _ _ ev -> ensureTCon ev
     _ -> err [DS "Expected a data type",
               DS ", but found", DD nf]
 

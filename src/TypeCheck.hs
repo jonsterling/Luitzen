@@ -362,11 +362,11 @@ tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
     (Just ty@(ResolvedObsEq a b p)) -> do
-      (evidence', _) <- checkType evidence p
-      return (Refl (Annot $ Just ty) evidence', ty)
+      (evidence', _) <- traceShow p (checkType evidence p)
+      return (Refl (Annot ann) evidence', ty)
     (Just ty@(ObsEq a b s t)) -> do
       equate a b
-      return (Refl (Annot $ Just ty) evidence, ty)
+      return (Refl (Annot ann) evidence, ty)
     _ -> err [DS "refl requires annotation"]
 
 tcTerm (ResolvedObsEq a b p) Nothing = do
