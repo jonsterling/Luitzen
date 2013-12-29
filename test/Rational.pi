@@ -1,0 +1,24 @@
+module Rational where
+
+import Integer
+import Nat
+
+PreRational : Type
+PreRational = {n : Integer | Integer}
+
+RatEquiv : PreRational -> PreRational -> Type
+RatEquiv = \p q. pcase p of
+  (n, d) -> pcase q of
+  (n', d') -> (iminus (itimes n d') (itimes n' d)) = pos 0
+
+Rational : Type
+Rational = PreRational / RatEquiv
+
+oneHalf : Rational
+oneHalf = <(pos 1, pos 2)>
+
+twoFourths : Rational
+twoFourths = <(pos 2, pos 4)>
+
+oneHalfEqualsTwoFourths : oneHalf = twoFourths
+oneHalfEqualsTwoFourths = refl refl
