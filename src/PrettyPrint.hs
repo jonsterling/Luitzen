@@ -120,11 +120,6 @@ instance Disp Decl where
            <+> text "where")
            2 (vcat $ map disp constructors)
 
-  disp (AbsData t delta lev) =
-        text "data" <+> disp t <+> disp delta <+> colon
-    <+> text "Type" <+> text (show lev)
-
-
 instance Disp ConstructorDef where
   disp (ConstructorDef _ c Empty) = text c
   disp (ConstructorDef _ c tele)  = text c <+> text "of" <+> disp tele
@@ -252,6 +247,26 @@ instance Display Term where
                      else
                        return $ text "Type" <+> (text $ show n)
 
+  display (Quotient t r) = do
+    dt <- display t
+    dr <- display r
+    return $ dt <+> text "/" <+> dr
+
+  display (QBox x (Annot mty)) = do
+    dx <- display x
+    case mty of
+      Nothing -> return $ text "<" <+> dx <+> text ">"
+      Just ty -> do
+        dty <- display ty
+        return $ text "<" <+> dx <+> text ":" <+> dty <+> text ">"
+
+  display (QElim p s rsp x) = do
+    dp <- display p
+    ds <- display s
+    drsp <- display rsp
+    dx <- display x
+    return $ text "expose" <+> dx <+> text "under" <+> dp <+> text "with" <+> ds <+> text "by" <+> drsp
+
   display (Pi ep bnd) = do
      lunbind bnd $ \((n,a), b) -> do
         da <- display (unembed a)
@@ -355,9 +370,15 @@ instance Display Term where
                      text "by" <+> db,
                      dat]
 
-  display (ObsEq a b t)   = do
-    da <- display a
-    db <- display b
+  display (ObsEq a b s t)   = do
+    let disp' (x, Annot Nothing) = display x
+        disp' (x, Annot (Just ty)) = do
+          dx <- display x
+          dty <- display ty
+          return $ dx <+> text ":" <+> dty
+
+    da <- disp' (a, s)
+    db <- disp' (b, t)
     return $ da <+> text "=" <+> db
 
   display (ResolvedObsEq a b p)   = do

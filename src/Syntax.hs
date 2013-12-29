@@ -46,6 +46,10 @@ data Term =
    | Type Int                           -- ^ universe level
    | Pi  Epsilon (Bind (TName, Embed Term) Term) -- ^ function type
 
+   | Quotient Term Term        -- ^ quotient type `A / R`
+   | QBox Term Annot           -- ^ quotient introduction `<x:Q>`
+   | QElim Term Term Term Term -- ^ quotient elimination
+
    -- practical matters for surface language
    | Ann Term Term         -- ^ Annotated terms `( x : A )`
    | Paren Term            -- ^ parenthesized term, useful for printing
@@ -65,7 +69,6 @@ data Term =
    | Let Epsilon (Bind (TName, Embed Term) Term)
      -- ^ let expression, introduces a new definition in the ctx
 
-   -- homework sigma types
    | Sigma (Bind (TName, Embed Term) Term)
      -- ^ sigma type '{ x : A | B }'
    | Prod Term Term Annot
@@ -75,7 +78,7 @@ data Term =
 
    -- equality
    | Refl Annot Term
-   | ObsEq Term Term Annot
+   | ObsEq Term Term Annot Annot
    | ResolvedObsEq Term Term Term
    | Subst Term Term (Maybe (Bind TName Term))
                         -- ^ equality elimination
@@ -149,15 +152,11 @@ data Decl = Sig     TName  Term
           | Data    TCName Telescope Int [ConstructorDef]
             -- ^ Declaration for a datatype including all of
             -- its data constructors
-          | AbsData TCName Telescope Int
-            -- ^ An abstract view of a type constructor. Does
-            -- not include any information about its data
-            -- constructors
-  deriving (Show)
+  deriving Show
 
 -- | A Data constructor has a name and a telescope of arguments
 data ConstructorDef = ConstructorDef SourcePos DCName Telescope
-  deriving (Show)
+  deriving Show
 
 -------------
 -- * Telescopes
@@ -233,6 +232,9 @@ instance Erase Term where
     where ((x,unembed -> _), body) = unsafeUnbind bnd
   erase (App a1 a2)     = App (erase a1) (erase a2)
   erase (Type i)        = Type i
+  erase (Quotient t r)  = Quotient (erase t) (erase r)
+  erase (QBox x _)      = QBox (erase x) noAnn
+  erase (QElim p s rsp q) = QElim (erase p) (erase s) (erase rsp) (erase q)
   erase (Pi ep bnd)     = Pi ep (bind (x, embed (erase tyA)) (erase tyB))
     where ((x,unembed -> tyA), tyB) = unsafeUnbind bnd
   erase (Ann t1 t2)     = erase t1
@@ -249,7 +251,7 @@ instance Erase Term where
     where ((x,unembed -> rhs),body) = unsafeUnbind bnd
 
   erase (Refl _ p)        = Refl noAnn (erase p)
-  erase (ObsEq a b t)     = ObsEq (erase a) (erase b) noAnn
+  erase (ObsEq a b s t)     = ObsEq (erase a) (erase b) noAnn noAnn
   erase (ResolvedObsEq a b p) = ResolvedObsEq (erase a) (erase b) (erase p)
   -- DesignDecision: should we erase subst completely?
   -- could cause typechecker to loop if D = D -> D assumed

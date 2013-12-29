@@ -1,0 +1,17 @@
+module Truncation where
+
+import Bool
+
+-- The propositional truncation can be implemented as a quotient
+-- which identifies all terms of the carrier type.
+Inh : Type -> Type
+Inh = \A. A / (\ x y. One)
+
+boolInh : Inh Bool
+boolInh = <true>
+
+axiom abort : (A : Type) -> Zero -> A
+
+emptyNotInh : Inh Zero -> Zero
+emptyNotInh = \q. expose q under (\x. Zero) with (\x. x) by (\x y z . abort (x = y) x)
+

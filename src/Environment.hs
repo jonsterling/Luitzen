@@ -139,10 +139,6 @@ lookupTCon v = do
       if v == v'
         then return (delta,lev,Just cs)
         else  scanGamma g
-    scanGamma (AbsData v' delta lev : g) =
-      if v == v'
-         then return (delta,lev,Nothing)
-         else scanGamma g
     scanGamma (_:g) = scanGamma g
 
 -- | Find a data constructor in the context, returns a list of
@@ -159,7 +155,6 @@ lookupDConAll v = do
           Nothing -> scanGamma g
           Just c -> do more <- scanGamma g
                        return $ (v', (delta, c)) : more
-    scanGamma (AbsData v' delta lev : g) = scanGamma g
     scanGamma (_:g) = scanGamma g
 
 -- | Given the name of a data constructor and the type that it should

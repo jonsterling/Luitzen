@@ -15,14 +15,13 @@ import Equal
 
 import Unbound.LocallyNameless hiding (Data, Refl)
 import Control.Applicative ((<$>), (<*>), (<$), pure)
-import Control.Monad.Error
+import Control.Monad.Error hiding (ap)
 import Text.PrettyPrint.HughesPJ
 import Data.Maybe
 import Control.Monad.RWS.Lazy (MonadReader)
 import Data.List(nub)
 import qualified Data.Set as S
 import Unbound.LocallyNameless.Ops (unsafeUnbind)
-
 
 -- Type abbreviation for documentation
 type Type = Term
@@ -47,6 +46,45 @@ tcTerm :: Term -> Maybe Type -> TcMonad (Term,Type)
 
 tcTerm t@(Var x) Nothing = (t,) <$> lookupTy x
 tcTerm t@(Type i) Nothing = return (t, Type (i+1))
+
+tcTerm q@(Quotient t r) Nothing = do
+  (at, _) <- tcType t
+  (ar, rt) <- checkType r (Pi Runtime (bind (string2Name "x", embed t)
+                            (Pi Runtime (bind (string2Name "y", embed t)
+                              (Type 0)))))
+  return $ (q, Type 0)
+
+tcTerm q@(QBox x (Annot mty)) Nothing = do
+  case mty of
+    Nothing -> err [DS "Could not infer type of quotient", DD q]
+    Just ty -> return (q, ty)
+
+tcTerm (QBox x ann1) ann2 = do
+  Just ty <- matchAnnots ann1 ann2
+  (carrier, rel) <- ensureQuotient ty
+  (ax, _) <- checkType x carrier
+  return $ (QBox ax (Annot $ Just ty), ty)
+
+tcTerm (QElim p s rsp q) Nothing = do
+  (aq, tyQ) <- inferType q
+  (carrier, rel) <- ensureQuotient tyQ
+
+  let varX = string2Name "x"
+  let varY = string2Name "Y"
+
+  tyPx <- whnf $ App p (Arg Runtime (QBox (Var varX) (Annot $ Just tyQ)))
+  tyPy <- whnf $ App p (Arg Runtime (QBox (Var varY) (Annot $ Just tyQ)))
+
+  (ap, tyP) <- checkType p (Pi Runtime (bind (varX, embed tyQ) (Type 0)))
+  (as, tyS) <- checkType s (Pi Runtime (bind (varX, embed carrier) tyPx))
+
+  (arsp, tyRsp) <- checkType rsp $ Pi Runtime $ bind (varX, embed carrier) $
+                                  (Pi Runtime (bind (varY, embed carrier)
+                                    (Pi Runtime (bind (string2Name "rpf", embed (App (App rel (Arg Runtime (Var varX))) (Arg Runtime (Var varY))))
+                                      (ObsEq (App s (Arg Runtime (Var varX))) (App s (Arg Runtime (Var varY))) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
+
+  nf <- whnf (App p (Arg Runtime q))
+  return (QElim ap as arsp aq, nf)
 
 tcTerm (Pi ep bnd) Nothing = do
   ((x, unembed -> tyA), tyB) <- unbind bnd
@@ -316,7 +354,7 @@ tcTerm (Refl ann1 evidence) ann2 = do
     (Just ty@(ResolvedObsEq a b p)) -> do
       _ <- checkType evidence p
       return (Refl (Annot $ Just ty) evidence, ty)
-    (Just ty@(ObsEq a b t)) -> do
+    (Just ty@(ObsEq a b s t)) -> do
       equate a b
       return (Refl (Annot $ Just ty) evidence, ty)
     _ -> err [DS "refl requires annotation"]
@@ -327,11 +365,11 @@ tcTerm (ResolvedObsEq a b p) Nothing = do
   equate aTy bTy
   return (ResolvedObsEq aa ab p, Type 0)
 
-tcTerm (ObsEq a b ann1) ann2 = do
+tcTerm (ObsEq a b _ _) ann2 = do
   (aa, aTy) <- inferType a
   (ab, bTy) <- checkType b aTy
   equate aTy bTy
-  return (ObsEq aa ab $ Annot $ Just aTy, Type 0)
+  return (ObsEq aa ab (Annot $ Just aTy) (Annot $ Just bTy), Type 0)
 
 tcTerm (Subst tm p mbnd) Nothing = do
   -- infer the type of the proof p
@@ -642,7 +680,7 @@ tcEntry (Axiom n ty) = do
   return $ AddCtx [Sig n ety, Def n (TrustMe (Annot (Just ety)))]
 
 -- rule Decl_data
-tcEntry (Data t delta lev cs) =
+tcEntry decl@(Data t delta lev cs) =
   do -- Check that the telescope for the datatype definition is well-formed
      (edelta, i) <- tcTypeTele delta
      ---- check that the telescope provided
@@ -650,7 +688,7 @@ tcEntry (Data t delta lev cs) =
      ---  TODO: worry about universe levels also?
      let elabConstructorDef defn@(ConstructorDef pos d tele) =
             extendSourceLocation pos defn $
-              extendCtx (AbsData t edelta lev) $
+              extendCtx decl $
                 extendCtxTele edelta $ ConstructorDef pos d . fst <$> tcTypeTele tele
      ecs <- mapM elabConstructorDef cs
      -- check that types are strictly positive.
@@ -661,7 +699,6 @@ tcEntry (Data t delta lev cs) =
        err [DS "Datatype definition", DD t, DS"contains duplicated constructors" ]
      -- finally, add the datatype to the env and perform action m
      return $ AddCtx [Data t edelta lev ecs]
-tcEntry AbsData{} = err [DS "internal construct"]
 
 
 -- | Make sure that we don't have the same name twice in the

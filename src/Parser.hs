@@ -46,6 +46,12 @@ Optional components in this BNF are marked with < >
     | a b                      Application
     | (x : A) -> B             Pi type
 
+    | A / R                    Quotient type
+    | <x:Q>                    Quotient introduction
+    | expose x P p rsp         Quotient elimination
+
+        expose : (P : A / R -> Type i) (s : (a : A) -> P <a>) (rsp : (x : A) (y : A) -> R x y -> (s x = s y)) (x : A / R) -> P x
+
     | (a : A)                  Annotations
     | (a)                      Parens
     | TRUSTME                  An axiom 'TRUSTME', inhabits all types
@@ -53,6 +59,7 @@ Optional components in this BNF are marked with < >
 
     | let x = a in b           Let expression
 
+    | Zero                     Empty type
     | One                      Unit type
     | tt                       Unit value
 
@@ -187,6 +194,8 @@ trellysStyle = Token.LanguageDef
                   ,"case"
                   ,"of"
                   ,"with"
+                  ,"under"
+                  ,"by"
                   ,"contra"
                   ,"subst", "by", "at"
                   ,"let", "in"
@@ -195,7 +204,8 @@ trellysStyle = Token.LanguageDef
                   ,"TRUSTME"
                   ,"ord"
                   ,"pcase"
-                  ,"One", "tt"
+                  ,"expose"
+                  ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
                  ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_","|","{", "}"]
@@ -278,8 +288,8 @@ natenc :: LParser Term
 natenc =
   do n <- natural
      return $ encode n
-   where encode 0 = DCon "Zero" [] natty
-         encode n = DCon "Succ" [Arg Runtime (encode (n-1))] natty
+   where encode 0 = DCon "zero" [] natty
+         encode n = DCon "succ" [Arg Runtime (encode (n-1))] natty
          natty    = Annot $ Just (TCon (string2Name "Nat") [])
 
 moduleImports :: LParser Module
@@ -392,11 +402,13 @@ expr,term,factor :: LParser Term
 expr = Pos <$> getPosition <*> buildExpressionParser table term
   where table = [[ifix  AssocLeft "<" Smaller],
                  [ifix  AssocLeft "=" mkEq],
+                 [ifix  AssocLeft "/" mkQuot],
                  [ifixM AssocRight "->" mkArrow]
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
         ifixM assoc op f = Infix (reservedOp op >> f) assoc
-        mkEq a b = ObsEq a b (Annot Nothing)
+        mkEq a b = ObsEq a b (Annot Nothing) (Annot Nothing)
+        mkQuot a r = Quotient a r
         mkArrow  =
           do n <- fresh wildcardName
              return $ \tyA tyB ->
@@ -434,6 +446,9 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , contra     <?> "a contra"
                 , caseExpr   <?> "a case"
                 , pcaseExpr  <?> "a pcase"
+                , exposeExpr <?> "an expose"
+                , sigmaTy    <?> "a sigma type"
+                , qboxExpr   <?> "a quotient box"
                 , substExpr  <?> "a subst"
                 , ordax      <?> "ord"
                 , refl       <?> "refl"
@@ -441,7 +456,6 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , hole       <?> "hole"
                 , impProd    <?> "an implicit function type"
                 , bconst     <?> "a constant"
-                , sigmaTy    <?> "a sigma type"
                 , expProdOrAnnotOrParens
                     <?> "an explicit function type or annotated expression"
                 ]
@@ -498,7 +512,8 @@ ind = do
 
 
 bconst  :: LParser Term
-bconst = choice [TyUnit <$ reserved "One",
+bconst = choice [TyEmpty <$ reserved "Zero",
+                 TyUnit <$ reserved "One",
                  LitUnit <$ reserved "tt"]
 --
 letExpr :: LParser Term
@@ -523,6 +538,26 @@ impProd =
      return $ case mc of
        Just c  -> PiC Erased (bind (x,embed tyA) (c,tyB))
        Nothing -> Pi Erased (bind (x,embed tyA) tyB)
+
+qboxExpr :: LParser Term
+qboxExpr = do
+  reservedOp "<"
+  x <- expr
+  mty <- optionMaybe (reservedOp ":" *> expr)
+  reservedOp ">"
+  return $ QBox x (Annot $ mty)
+
+exposeExpr :: LParser Term
+exposeExpr = do
+  reserved "expose"
+  q <- expr
+  reserved "under"
+  p <- expr
+  reserved "with"
+  s <- expr
+  reserved "by"
+  rsp <- expr
+  return $ QElim p s rsp q
 
 constraint :: LParser (Maybe Term)
 constraint = option Nothing $ reservedOp "|" >> Just <$> expr

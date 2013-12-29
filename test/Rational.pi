@@ -1,0 +1,56 @@
+module Rational where
+
+import Integer
+import Nat
+import Truncation
+
+IntNonzero : Type
+IntNonzero = {d : Integer | [d = zer] -> Zero}
+
+PreRational : Type
+PreRational = {n : Integer | IntNonzero}
+
+RatEquiv : PreRational -> PreRational -> Type
+RatEquiv = \p q. pcase p of
+  (n, dp) -> pcase q of
+  (n', dp') -> pcase dp of
+  (d, dnz) -> pcase dp' of
+  (d', dnz') -> (itimes n d') = (itimes n' d)
+
+Rational : Type
+Rational = PreRational / RatEquiv
+
+oneHalf : Rational
+oneHalf = <(pos 1, (pos 2, \[p]. contra p))>
+
+twoFourths : Rational
+twoFourths = <(pos 2, (pos 4, \[p]. contra p))>
+
+oneHalfEqualsTwoFourths : oneHalf = twoFourths
+oneHalfEqualsTwoFourths = refl refl
+
+numerator' : PreRational -> Integer
+numerator' = \p. pcase p of (n, d) -> n
+
+denominator' : PreRational -> IntNonzero
+denominator' = \p. pcase p of (n, d) -> d
+
+-- There is no continuous function to extract the numerator from a rational,
+-- since it might either be positive or negative, depending on the denominator.
+-- It is only possible to observe components of a rational simultaneously.
+
+--   numeratorResp : (x : PreRational) (y : PreRational) (pf : RatEquiv x y) -> (numerator' x) = (numerator' y)
+--   numeratorResp = {?help}
+--
+--   numerator : Rational -> Integer
+--   numerator = \x . expose x under (\r. Integer) with numerator' by numeratorResp
+--
+-- But you can use the propositional truncation to say that there *merely exists* a
+-- numerator and a nonzero denominator.
+
+numerator : Rational -> Inh Integer
+numerator = \q. expose q under (\x. Inh Integer) with (\x. <numerator' x>) by (\x y p. refl)
+
+denominator : Rational -> Inh IntNonzero
+denominator = \q. expose q under (\x. Inh IntNonzero) with (\x. <denominator' x>) by (\x y p. refl)
+
