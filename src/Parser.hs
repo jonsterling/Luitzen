@@ -396,7 +396,7 @@ expr = Pos <$> getPosition <*> buildExpressionParser table term
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
         ifixM assoc op f = Infix (reservedOp op >> f) assoc
-        mkEq a b = ObsEq a b (Annot Nothing)
+        mkEq a b = ObsEq a b (Annot Nothing) (Annot Nothing)
         mkArrow  =
           do n <- fresh wildcardName
              return $ \tyA tyB ->
