@@ -88,10 +88,16 @@ plus0' : Nat -> Nat
 plus0' = plus 0
 
 plus0plus0' : plus0 = plus0'
-plus0plus0' = \x .
-  case x of
-    zero -> refl
-    succ n -> resp [Nat] [Nat] [plus0 n] [plus0' n] (\y. succ y) (plus0plus0' n)
+plus0plus0' =
+  refl \x y xy.
+    case x of
+      zero -> case y of
+        zero -> refl
+        succ m -> contra xy
+      succ n -> case y of
+        zero -> contra xy
+        succ m -> let nm = resp [Nat] [Nat] [x] [y] pred xy in
+                  resp [Nat] [Nat] [plus0 n] [plus0' m] (\y. succ y) (plus0plus0' n m nm)
 
 testSubst : Nat
 testSubst = subst 0 by plus0plus0' at h. Nat

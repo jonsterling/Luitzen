@@ -4,27 +4,27 @@ import Integer
 import Nat
 import Truncation
 
-IntNonzero : Type
-IntNonzero = {d : Integer | [d = zer] -> Zero}
+NatNonzero : Type
+NatNonzero = {d : Nat | [d = zero] -> Zero}
 
 PreRational : Type
-PreRational = {n : Integer | IntNonzero}
+PreRational = {n : Integer | NatNonzero}
 
 RatEquiv : PreRational -> PreRational -> Type
 RatEquiv = \p q. pcase p of
   (n, dp) -> pcase q of
   (n', dp') -> pcase dp of
   (d, dnz) -> pcase dp' of
-  (d', dnz') -> (itimes n d') = (itimes n' d)
+  (d', dnz') -> (itimes n (pos d')) = (itimes n' (pos d))
 
 Rational : Type
 Rational = PreRational / RatEquiv
 
 oneHalf : Rational
-oneHalf = <(pos 1, (pos 2, \[p]. contra p))>
+oneHalf = <(pos 1, (2, \[p]. contra p))>
 
 twoFourths : Rational
-twoFourths = <(pos 2, (pos 4, \[p]. contra p))>
+twoFourths = <(pos 2, (4, \[p]. contra p))>
 
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
 oneHalfEqualsTwoFourths = refl refl
@@ -32,7 +32,7 @@ oneHalfEqualsTwoFourths = refl refl
 numerator' : PreRational -> Integer
 numerator' = \p. pcase p of (n, d) -> n
 
-denominator' : PreRational -> IntNonzero
+denominator' : PreRational -> NatNonzero
 denominator' = \p. pcase p of (n, d) -> d
 
 -- There is no continuous function to extract the numerator from a rational,
@@ -51,6 +51,6 @@ denominator' = \p. pcase p of (n, d) -> d
 numerator : Rational -> Inh Integer
 numerator = \q. expose q under (\x. Inh Integer) with (\x. <numerator' x>) by (\x y p. refl)
 
-denominator : Rational -> Inh IntNonzero
-denominator = \q. expose q under (\x. Inh IntNonzero) with (\x. <denominator' x>) by (\x y p. refl)
+denominator : Rational -> Inh NatNonzero
+denominator = \q. expose q under (\x. Inh NatNonzero) with (\x. <denominator' x>) by (\x y p. refl)
 

@@ -13,10 +13,19 @@ ind not x = case x of
   true -> false
   false -> true
 
-idnotnot : id = (\x. not (not x))
-ind idnotnot x = case x of
-  true -> refl
-  false -> refl
+notnot : Bool -> Bool
+notnot = \x. not (not x)
+
+idnotnot : id = notnot
+idnotnot =
+  refl \x y xy.
+    case x of
+      true -> case y of
+        true -> refl
+        false -> contra xy
+      false -> case y of
+        true -> contra xy
+        false -> refl
 
 -- ## A demonstration of quotient types
 -- This isn't as interesting as the proper Interval type, since UIP holds in
@@ -37,7 +46,7 @@ seg = refl
 -- continuous. In the case of quotients, this means that they must respect the
 -- quotient's equivalence relation.
 exposeInterval : Interval -> Bool
-exposeInterval = \i. expose i under (\x. Bool) with (\x. true) by (\x y rpf. refl)
+exposeInterval = \i. expose i under \x. Bool with \x. true by \x y rpf. refl
 
 -- A demonstration that quotient elimination computes.
 testExposure : exposeInterval <true> = true

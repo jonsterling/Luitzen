@@ -63,15 +63,12 @@ equate t1 t2 = do
           equate body1 body2
 
         (ObsEq a1 b1 annS1 annT1, ObsEq a2 b2 annS2 annT2) -> do
-          equateAnn annS1 annS2
-          equateAnn annT1 annT2
           equate a1 a2
           equate b1 b2
 
         (ResolvedObsEq a1 b1 p1, ResolvedObsEq a2 b2 p2) -> do
           equate a1 a2
           equate b1 b2
-          equate p1 p2
 
         (Sigma bnd1, Sigma bnd2) -> do
           Just ((x, unembed -> tyA1), tyB1,
@@ -280,7 +277,6 @@ whnf (Case scrut mtchs annot) = do
 
 
 whnf eq@(ObsEq a b ann1 ann2) = do
-  equateAnn ann1 ann2
   na <- whnf a
   nb <- whnf b
 
@@ -305,13 +301,23 @@ whnf eq@(ObsEq a b ann1 ann2) = do
                   resolve $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
                 _ -> fallback
             (Pi ep bnd1, Pi _ bnd2) -> do
-              ((x, etyA), tyB1) <- unbind bnd1
-              ((_, _), tyB2) <- unbind bnd2
+              ((x, etyA1), tyB1) <- unbind bnd1
+              ((y, etyA2), tyB2) <- unbind bnd2
               case (na, nb) of
                 (Lam _ b1, Lam _ b2) ->
-                  let app f = whnf $ App f (Arg ep (Var x)) in
-                  let body = ObsEq <$> app na <*> app nb <*> pure (Annot (Just tyB1)) <*> pure (Annot (Just tyB2)) in
-                  Pi ep <$> (bind (x, etyA) <$> body) >>= resolve
+                  let body = ObsEq (App na (Arg ep (Var x))) (App nb (Arg ep (Var y))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
+                  resolve $ Pi ep $ bind (x, etyA1) $
+                              Pi ep $ bind (y, etyA2) $
+                                Pi ep $ bind (string2Name "pxy", embed $ ObsEq (Var x) (Var y) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
+                                  body
+                _ -> fallback
+            (Sigma bnd1, Sigma bnd2) -> do
+              ((x, eTyA1), tyB1) <- unbind bnd1
+              ((y, eTyA2), tyB2) <- unbind bnd2
+              case (na, nb) of
+                (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
+                  resolve $ Sigma $ bind (string2Name "px", embed $ ObsEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
+                                      (ObsEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
                 _ -> fallback
             _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
         _ -> fallback
