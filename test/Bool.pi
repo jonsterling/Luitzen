@@ -8,6 +8,11 @@ data Bool : Type where
 id : Bool -> Bool
 id = \x . x
 
+not : Bool -> Bool
+ind not x = case x of
+  true -> false
+  false -> true
+
 idnotnot : id = (\x. not (not x))
 ind idnotnot x = case x of
   true -> refl
