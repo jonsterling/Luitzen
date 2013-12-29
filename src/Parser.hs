@@ -46,6 +46,12 @@ Optional components in this BNF are marked with < >
     | a b                      Application
     | (x : A) -> B             Pi type
 
+    | A / R                    Quotient type
+    | <x:Q>                    Quotient introduction
+    | expose x P p rsp         Quotient elimination
+
+        expose : (P : A / R -> Type i) (s : (a : A) -> P <a>) (rsp : (x : A) (y : A) -> R x y -> (s x = s y)) (x : A / R) -> P x
+
     | (a : A)                  Annotations
     | (a)                      Parens
     | TRUSTME                  An axiom 'TRUSTME', inhabits all types
@@ -187,6 +193,8 @@ trellysStyle = Token.LanguageDef
                   ,"case"
                   ,"of"
                   ,"with"
+                  ,"under"
+                  ,"by"
                   ,"contra"
                   ,"subst", "by", "at"
                   ,"let", "in"
@@ -195,6 +203,7 @@ trellysStyle = Token.LanguageDef
                   ,"TRUSTME"
                   ,"ord"
                   ,"pcase"
+                  ,"expose"
                   ,"One", "tt"
                   ]
                , Token.reservedOpNames =
@@ -392,11 +401,13 @@ expr,term,factor :: LParser Term
 expr = Pos <$> getPosition <*> buildExpressionParser table term
   where table = [[ifix  AssocLeft "<" Smaller],
                  [ifix  AssocLeft "=" mkEq],
+                 [ifix  AssocLeft "/" mkQuot],
                  [ifixM AssocRight "->" mkArrow]
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
         ifixM assoc op f = Infix (reservedOp op >> f) assoc
         mkEq a b = ObsEq a b (Annot Nothing) (Annot Nothing)
+        mkQuot a r = Quotient a r
         mkArrow  =
           do n <- fresh wildcardName
              return $ \tyA tyB ->
@@ -434,6 +445,8 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , contra     <?> "a contra"
                 , caseExpr   <?> "a case"
                 , pcaseExpr  <?> "a pcase"
+                , exposeExpr <?> "an expose"
+                , qboxExpr   <?> "a quotient box"
                 , substExpr  <?> "a subst"
                 , ordax      <?> "ord"
                 , refl       <?> "refl"
@@ -523,6 +536,26 @@ impProd =
      return $ case mc of
        Just c  -> PiC Erased (bind (x,embed tyA) (c,tyB))
        Nothing -> Pi Erased (bind (x,embed tyA) tyB)
+
+qboxExpr :: LParser Term
+qboxExpr = do
+  reservedOp "<"
+  x <- expr
+  mty <- optionMaybe (reservedOp ":" *> expr)
+  reservedOp ">"
+  return $ QBox x (Annot $ mty)
+
+exposeExpr :: LParser Term
+exposeExpr = do
+  reserved "expose"
+  q <- expr
+  reserved "under"
+  p <- expr
+  reserved "with"
+  s <- expr
+  reserved "by"
+  rsp <- expr
+  return $ QElim p s rsp q
 
 constraint :: LParser (Maybe Term)
 constraint = option Nothing $ reservedOp "|" >> Just <$> expr

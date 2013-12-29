@@ -4,13 +4,36 @@ data Bool : Type where
   true
   false
 
+
+id : Bool -> Bool
+id = \x . x
+
 not : Bool -> Bool
 ind not x = case x of
   true -> false
   false -> true
 
-id : Bool -> Bool
-id = \x . x
+
+-- A demonstration of quotient types. This isn't as interesting as
+-- the proper Interval type, since UIP holds in OTT (and thence it
+-- is provable that seg = refl).
+Interval : Type
+Interval = Bool / (\x y. One)
+
+one : Interval
+one = <true>
+
+two : Interval
+two = <false>
+
+seg : one = two
+seg = refl
+
+testExpose : Bool
+testExpose = expose one under (\x. Bool) with (\x. true) by (\x y rpf. refl)
+
+test3 : testExpose = true
+test3 = refl
 
 notnot : Bool -> Bool
 notnot = \x. not (not x)
@@ -19,3 +42,4 @@ idnotnot : id = notnot
 ind idnotnot x = case x of
   true -> refl
   false -> refl
+

@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -Wall -fno-warn-unused-matches #-}
 
 -- | Compare two terms for equality
-module Equal (whnf,equate,ensureType,ensurePi, ensureTyEq,  ensureTCon  ) where
+module Equal (whnf,equate,ensureType,ensurePi, ensureTyEq,  ensureTCon, ensureQuotient) where
 
 import Syntax
 import Environment
@@ -12,6 +12,7 @@ import Environment
 import Unbound.LocallyNameless hiding (Data, Refl)
 import Control.Monad.Error (catchError, zipWithM, zipWithM_)
 import Control.Applicative ((<$>), (<*>), (<$), pure)
+import Debug.Trace
 
 equateAnn :: Annot -> Annot -> TcMonad ()
 equateAnn (Annot Nothing) (Annot Nothing) = return ()
@@ -25,7 +26,7 @@ equate :: Term -> Term -> TcMonad ()
 equate t1 t2 = do
   n1 <- whnf t1
   n2 <- whnf t2
-  case t1 `aeq` t2 of
+  case n1 `aeq` n2 of
     True -> pure ()
     False ->
       case (n1, n2) of
@@ -42,6 +43,9 @@ equate t1 t2 = do
                 (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
           equate tyA1 tyA2
           equate tyB1 tyB2
+        (Quotient a1 r1, Quotient a2 r2) -> do
+          equate a1 a2
+          equate r1 r2
 
         (Ann at1 _, at2) -> equate at1 at2
         (at1, Ann at2 _) -> equate at1 at2
@@ -190,6 +194,13 @@ ensureTCon aty = do
     _ -> err [DS "Expected a data type",
               DS ", but found", DD nf]
 
+ensureQuotient :: Term -> TcMonad (Term, Term)
+ensureQuotient qty = do
+  nf <- whnf qty
+  case nf of
+    Quotient ty rel -> return (ty, rel)
+    _ -> err [DS "Expected a quotient type",
+              DS ", but found", DD nf]
 
 
 -------------------------------------------------------
@@ -231,12 +242,17 @@ whnf (Pcase a bnd ann) = do
     _ -> return (Pcase nf bnd ann)
 
 
-whnf t@(Ann tm ty) =
-  err [DS "Unexpected arg to whnf:", DD t]
-whnf t@(Paren x)   =
-  err [DS "Unexpected arg to whnf:", DD t]
-whnf t@(Pos _ x)   =
-  err [DS "Unexpected position arg to whnf:", DD t]
+whnf (QElim p s rsp q) = do
+  QBox x ann <- whnf q
+  nx <- whnf x
+  whnf (App s (Arg Runtime nx))
+
+whnf t@(Ann tm ty) = whnf tm
+  -- err [DS "Unexpected arg to whnf:", DD t]
+whnf t@(Paren x)   = whnf x
+  -- err [DS "Unexpected arg to whnf:", DD t]
+whnf t@(Pos _ x)   = whnf x
+  -- err [DS "Unexpected position arg to whnf:", DD t]
 
 whnf (Let ep bnd)  = do
   ((x,unembed->rhs),body) <- unbind bnd
@@ -269,16 +285,25 @@ whnf eq@(ObsEq a b ann1 ann2) = do
   nb <- whnf b
 
   let fallback = (TyUnit <$ equate a b) `catchError` (\e -> return eq)
-  let resolve p = return $ ResolvedObsEq a b p
+  let resolve p = ResolvedObsEq a b <$> whnf p
 
   definitionally <- (Just <$> equate na nb) `catchError` (\e -> return Nothing)
   case definitionally of
     Just () -> resolve TyUnit
     Nothing ->
       case (ann1, ann2) of
-        (Annot (Just ty1), Annot (Just ty2)) ->
-          case (ty1,ty2) of
+        (Annot (Just ty1), Annot (Just ty2)) -> do
+          nty1 <- whnf ty1
+          nty2 <- whnf ty2
+          case (nty1,nty2) of
             (TyUnit, TyUnit) -> resolve TyUnit
+            (Quotient a1 r1, Quotient a2 r2) -> do
+              equate a1 a2
+              equate r1 r2
+              case (na, nb) of
+                (QBox xa _, QBox xb _) ->
+                  resolve $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
+                _ -> fallback
             (Pi ep bnd1, Pi _ bnd2) -> do
               ((x, etyA), tyB1) <- unbind bnd1
               ((_, _), tyB2) <- unbind bnd2
