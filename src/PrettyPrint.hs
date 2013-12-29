@@ -265,7 +265,7 @@ instance Display Term where
     ds <- display s
     drsp <- display rsp
     dx <- display x
-    return $ text "expose" <+> dp <+> ds <+> drsp <+> dx
+    return $ text "expose" <+> dx <+> text "under" <+> dp <+> text "with" <+> ds <+> text "by" <+> drsp
 
   display (Pi ep bnd) = do
      lunbind bnd $ \((n,a), b) -> do
