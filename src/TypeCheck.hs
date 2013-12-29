@@ -72,13 +72,16 @@ tcTerm (QElim p s rsp q) Nothing = do
   let varX = string2Name "x"
   let varY = string2Name "Y"
 
+  tyPx <- whnf $ App p (Arg Runtime (QBox (Var varX) (Annot $ Just tyQ)))
+  tyPy <- whnf $ App p (Arg Runtime (QBox (Var varY) (Annot $ Just tyQ)))
+
   (ap, tyP) <- checkType p (Pi Runtime (bind (varX, embed tyQ) (Type 0)))
-  (as, tyS) <- checkType s (Pi Runtime (bind (varY, embed carrier) (App p (Arg Runtime (QBox (Var varX) (Annot $ Just tyQ) )))))
+  (as, tyS) <- checkType s (Pi Runtime (bind (varX, embed carrier) tyPx))
 
   (arsp, tyRsp) <- checkType rsp $ Pi Runtime $ bind (varX, embed carrier) $
                                   (Pi Runtime (bind (varY, embed carrier)
                                     (Pi Runtime (bind (string2Name "rpf", embed (App (App rel (Arg Runtime (Var varX))) (Arg Runtime (Var varY))))
-                                      (ObsEq (App s (Arg Runtime (Var varX))) (App s (Arg Runtime (Var varY))) (Annot $ Just carrier) (Annot $ Just carrier))))))
+                                      (ObsEq (App s (Arg Runtime (Var varX))) (App s (Arg Runtime (Var varY))) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
 
   nf <- whnf (App p (Arg Runtime q))
   return (QElim ap as arsp aq, nf)
