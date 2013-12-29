@@ -25,3 +25,17 @@ twoFourths = <(pos 2, (pos 4, \[p]. contra p))>
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
 oneHalfEqualsTwoFourths = refl refl
 
+numerator : PreRational -> Integer
+numerator = \p. pcase p of (n, d) -> n
+
+-- There is no continuous function to extract the numerator from a rational,
+-- since it might either be positive or negative, depending on the denominator.
+-- It is only possible to observe components of a rational simultaneously.
+
+--   numeratorResp : (x : PreRational) (y : PreRational) (pf : RatEquiv x y) -> (numerator' x) = (numerator' y)
+--   numeratorResp = {?help}
+--
+--   numerator : Rational -> Integer
+--   numerator = \x . expose x under (\r. Integer) with numerator' by numeratorResp
+--
+
