@@ -15,7 +15,7 @@ RatEquiv = \p q. pcase p of
   (n, dp) -> pcase q of
   (n', dp') -> pcase dp of
   (d, dnz) -> pcase dp' of
-  (d', dnz') -> (iminus (itimes n d') (itimes n' d)) = pos 0
+  (d', dnz') -> (itimes n d') = (itimes n' d)
 
 Rational : Type
 Rational = PreRational / RatEquiv
