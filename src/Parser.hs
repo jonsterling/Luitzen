@@ -59,6 +59,7 @@ Optional components in this BNF are marked with < >
 
     | let x = a in b           Let expression
 
+    | Zero                     Empty type
     | One                      Unit type
     | tt                       Unit value
 
@@ -204,7 +205,7 @@ trellysStyle = Token.LanguageDef
                   ,"ord"
                   ,"pcase"
                   ,"expose"
-                  ,"One", "tt"
+                  ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
                  ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_","|","{", "}"]
@@ -287,8 +288,8 @@ natenc :: LParser Term
 natenc =
   do n <- natural
      return $ encode n
-   where encode 0 = DCon "Zero" [] natty
-         encode n = DCon "Succ" [Arg Runtime (encode (n-1))] natty
+   where encode 0 = DCon "zero" [] natty
+         encode n = DCon "succ" [Arg Runtime (encode (n-1))] natty
          natty    = Annot $ Just (TCon (string2Name "Nat") [])
 
 moduleImports :: LParser Module
@@ -511,7 +512,8 @@ ind = do
 
 
 bconst  :: LParser Term
-bconst = choice [TyUnit <$ reserved "One",
+bconst = choice [TyEmpty <$ reserved "Zero",
+                 TyUnit <$ reserved "One",
                  LitUnit <$ reserved "tt"]
 --
 letExpr :: LParser Term

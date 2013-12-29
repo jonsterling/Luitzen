@@ -12,20 +12,20 @@ ind iplus x = \y. case x of
   zer -> y
   onePlus n -> case y of
     zer -> onePlus n
-    onePlus m -> onePlus (Succ (plus n m))
+    onePlus m -> onePlus (succ (plus n m))
     negOneMinus m -> case (lt m n) of
-      true -> onePlus (minus n (Succ m))
+      true -> onePlus (minus n (succ m))
       false -> case (minus m n) of
-        Zero -> zer
-        Succ mn -> negOneMinus mn
+        zero -> zer
+        succ mn -> negOneMinus mn
   negOneMinus n -> case y of
     zer -> negOneMinus n
     onePlus m -> case (lt m n) of
-      true -> negOneMinus (minus n (Succ m))
+      true -> negOneMinus (minus n (succ m))
       false -> case (minus m n) of
-        Zero -> zer
-        Succ mn -> onePlus mn
-    negOneMinus m -> negOneMinus (Succ (plus n m))
+        zero -> zer
+        succ mn -> onePlus mn
+    negOneMinus m -> negOneMinus (succ (plus n m))
 
 negate : Integer -> Integer
 ind negate x = case x of
@@ -41,22 +41,22 @@ ind itimes x = \y. case x of
   zer -> zer
   onePlus n -> case y of
     zer -> zer
-    onePlus m -> onePlus (pred (times (Succ n) (Succ m)))
-    negOneMinus m -> negOneMinus (pred (times (Succ n) (Succ m)))
+    onePlus m -> onePlus (pred (times (succ n) (succ m)))
+    negOneMinus m -> negOneMinus (pred (times (succ n) (succ m)))
   negOneMinus n -> case y of
     zer -> zer
-    onePlus m -> negOneMinus (pred (times (Succ n) (Succ m)))
-    negOneMinus m -> onePlus (pred (times (Succ n) (Succ m)))
+    onePlus m -> negOneMinus (pred (times (succ n) (succ m)))
+    negOneMinus m -> onePlus (pred (times (succ n) (succ m)))
 
 pos : Nat -> Integer
 pos = \x. case x of
-  Zero -> zer
-  Succ n -> onePlus n
+  zero -> zer
+  succ n -> onePlus n
 
 neg : Nat -> Integer
 neg = \x . case x of
-  Zero -> zer
-  Succ n -> negOneMinus n
+  zero -> zer
+  succ n -> negOneMinus n
 
 test : (itimes (pos (2)) (pos (2))) = pos 4
 test = refl

@@ -4,21 +4,24 @@ import Integer
 import Nat
 
 PreRational : Type
-PreRational = {n : Integer | Integer}
+PreRational = {n : Integer | {d: Integer | [d = zer] -> Zero }}
 
 RatEquiv : PreRational -> PreRational -> Type
 RatEquiv = \p q. pcase p of
-  (n, d) -> pcase q of
-  (n', d') -> (iminus (itimes n d') (itimes n' d)) = pos 0
+  (n, dp) -> pcase q of
+  (n', dp') -> pcase dp of
+  (d, dnz) -> pcase dp' of
+  (d', dnz') -> (iminus (itimes n d') (itimes n' d)) = pos 0
 
 Rational : Type
 Rational = PreRational / RatEquiv
 
 oneHalf : Rational
-oneHalf = <(pos 1, pos 2)>
+oneHalf = <(pos 1, (pos 2, \[p]. contra p))>
 
 twoFourths : Rational
-twoFourths = <(pos 2, pos 4)>
+twoFourths = <(pos 2, (pos 4, \[p]. contra p))>
 
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
 oneHalfEqualsTwoFourths = refl refl
+
