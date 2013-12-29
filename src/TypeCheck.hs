@@ -352,6 +352,9 @@ tcTerm t@(Trivial ann1) ann2 = do
   nty <- whnf ty
   case nty of
     TyUnit -> return (LitUnit, nty)
+    Sigma bnd -> do
+      ((x, unembed -> tyA), tyB) <- unbind bnd
+      tcTerm (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) ann
     ResolvedObsEq x y ev -> tcTerm (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) (Just nty)
     _ -> err [DS "Trivial tactic not effective for", DD ty]
 
