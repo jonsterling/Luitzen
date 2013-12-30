@@ -391,17 +391,17 @@ tcTerm t@(Trivial ann1) ann2 = do
             return (LitUnit, nty)
           Pi ep bnd -> do
             ((x, unembed -> tyA), tyB) <- unbind bnd
-            checkType (Lam ep (bind (x, embed (Annot $ Just tyA)) (Trivial $ Annot $ Just tyB))) nty
+            checkType (Lam ep (bind (x, embed (Annot Nothing)) (Trivial $ Annot Nothing))) nty
           Sigma bnd -> do
             ((x, unembed -> tyA), tyB) <- unbind bnd
-            checkType (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) nty
+            checkType (Prod (Trivial $ Annot Nothing) (Trivial $ Annot Nothing) (Annot ann)) nty
           ResolvedObsEq x y ev ->
-            checkType (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) nty
+            checkType (Refl (Annot Nothing) (Trivial $ Annot $ Just ev)) nty
           _ -> do
             gam <- getLocalCtx
             err [DS "Trivial tactic not effective for type", DD nty, DS "in context", DD gam]
 
-  proofSearch <|> conventional
+  conventional <|> proofSearch
 
 tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
