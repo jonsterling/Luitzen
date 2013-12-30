@@ -73,6 +73,7 @@ Optional components in this BNF are marked with < >
     | refl p                   Equality proof with evidence
 
     | trivial                  Trivial tactic
+    | induction [x,...y]       Induction tactic
 
     | C a ...                  Type / Term constructors
     | case a [y] of            Pattern matching
@@ -208,6 +209,7 @@ trellysStyle = Token.LanguageDef
                   ,"pcase"
                   ,"expose"
                   ,"trivial"
+                  ,"induction"
                   ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
@@ -393,6 +395,11 @@ hole = Hole <$> name <*> return (Annot Nothing)
 trivialTactic :: LParser Term
 trivialTactic = Trivial (Annot Nothing) <$ reserved "trivial"
 
+inductionTactic :: LParser Term
+inductionTactic = reserved "induction" *> (Induction (Annot Nothing) <$> brackets scrutinees)
+  where
+    scrutinees = expr `sepBy1` comma
+
 refl :: LParser Term
 refl = do
   reserved "refl"
@@ -459,6 +466,7 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , ordax      <?> "ord"
                 , refl       <?> "refl"
                 , trivialTactic <?> "the trivial tactic"
+                , inductionTactic <?> "the induction tactic"
                 , trustme    <?> "TRUSTME"
                 , hole       <?> "hole"
                 , impProd    <?> "an implicit function type"

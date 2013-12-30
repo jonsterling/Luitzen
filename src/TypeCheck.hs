@@ -273,8 +273,7 @@ tcTerm (Case scrut alts ann1) ann2 = do
            (Just expectedTy) -> do
              -- add scrut = pat equation to the context.
              decls' <- equateWithPat scrut pat (TCon n params)
-             (ebody, _) <- extendCtxs (decls ++ decls') $
-               checkType body expectedTy
+             (ebody, _) <- extendCtxs (decls ++ decls') $ checkType body expectedTy
              return (ebody, expectedTy)
            Nothing -> -- extendCtxs decls $ inferType body
              err [DS "must be in checking mode for case"]
@@ -348,6 +347,29 @@ tcTerm (Ind ep1 bnd ann1) ann2 = do
     Nothing ->
       err [DS "Ind expression should be annotated with its type"]
 
+tcTerm t@(Induction ann1@(Annot ty1) ss) ann2 = do
+  ann@(Just ty) <- matchAnnots ann1 ann2
+
+  let performInduction [] = return $ Trivial (Annot ann)
+      performInduction (x:xs) = do
+        (x', xty) <- inferType x
+        (tcn, _) <- ensureTCon xty
+        (tele, _, Just dcons) <- lookupTCon tcn
+
+        let patVars :: Telescope -> [(Pattern, Epsilon)]
+            patVars Empty = []
+            patVars (Cons e (unrebind->((n,_), tele'))) = (PatVar n, e) : patVars tele'
+
+        let buildMatch :: ConstructorDef -> TcMonad Match
+            buildMatch (ConstructorDef _ dcn args) =
+              Match <$> bind (PatCon dcn (patVars args)) <$> (performInduction xs)
+
+        matches <- sequence $ buildMatch <$> dcons
+        return $ Case x matches (Annot ann)
+
+  switch <- performInduction ss
+  checkType switch (traceShow (disp switch) $ ty)
+
 tcTerm t@(Trivial ann1) ann2 = do
   ann@(Just ty) <- matchAnnots ann1 ann2
   nty <- whnf ty
@@ -355,9 +377,9 @@ tcTerm t@(Trivial ann1) ann2 = do
   let proofSearch = do
         gam <- getCtx
         let checkDecls ((Sig nm ty') : gs) =
-              do { mtm <- (lookupDef nm)
-                 ; (ntm, nty') <- checkType (Var nm) nty
-                 ; return $ (Var nm, nty)
+              do { mtm <- lookupDef nm
+                 ; (ntm, nty') <- (checkType (Contra (Var nm) (Annot ann)) nty) <|> (checkType (Var nm) nty)
+                 ; return $ (ntm, nty)
                  } <|> checkDecls gs
             checkDecls (_ : gs) = checkDecls gs
             checkDecls [] = err [DS "Could not find suitable value of type", DD nty, DS "in context", DD gam]
@@ -369,13 +391,15 @@ tcTerm t@(Trivial ann1) ann2 = do
             return (LitUnit, nty)
           Pi ep bnd -> do
             ((x, unembed -> tyA), tyB) <- unbind bnd
-            tcTerm (Lam ep (bind (x, embed (Annot $ Just tyA)) (Trivial $ Annot $ Just tyB))) ann
+            checkType (Lam ep (bind (x, embed (Annot $ Just tyA)) (Trivial $ Annot $ Just tyB))) nty
           Sigma bnd -> do
             ((x, unembed -> tyA), tyB) <- unbind bnd
-            tcTerm (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) ann
-          ResolvedObsEq x y ev -> tcTerm (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) (Just nty)
-          _ ->
-            err [DS "Trivial tactic not effective for type", DD nty]
+            checkType (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) nty
+          ResolvedObsEq x y ev ->
+            checkType (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) nty
+          _ -> do
+            gam <- getLocalCtx
+            err [DS "Trivial tactic not effective for type", DD nty, DS "in context", DD gam]
 
   proofSearch <|> conventional
 
@@ -607,6 +631,7 @@ pat2Term (PatVar x) ty = return (Var x)
 -- that are not variables or constructors applied to vars may not
 -- produce any equations.
 equateWithPat :: Term -> Pattern -> Type -> TcMonad [Decl]
+equateWithPat (Pos  _ x) pat ty = equateWithPat x pat ty
 equateWithPat (Var x) pat ty = (:[]) . Def x <$> pat2Term pat ty
 equateWithPat (DCon dc args _) (PatCon dc' pats) (TCon n params)
   | dc == dc' = do
@@ -854,7 +879,7 @@ relatedPats dc (pc@(PatVar _):pats) = ([], pc:pats)
 checkSubPats :: Telescope -> [[(Pattern,Epsilon)]] -> TcMonad ()
 checkSubPats Empty _ = return ()
 checkSubPats (Cons _ (unrebind->((name,unembed->tyP),tele))) patss
-  | not (null patss) = do
+  | not (null (concat patss)) = do
   let hds = map (fst . head) patss
   let tls = map tail patss
   case hds of

@@ -268,12 +268,12 @@ whnf (Case scrut mtchs annot) = do
     _ -> return (Case nf mtchs annot)
 
 
-whnf eq@(ObsEq a b ann1 ann2) = do
+whnf (ObsEq a b ann1 ann2) = do
   na <- whnf a
   nb <- whnf b
 
-  let fallback = (TyUnit <$ equate a b) `catchError` (\e -> return eq)
-  let resolve p = ResolvedObsEq a b <$> whnf p
+  let resolve p = ResolvedObsEq na nb <$> whnf p
+  let fallback = (equate na nb >> resolve TyUnit) `catchError` (\e -> return $ ObsEq na nb ann1 ann2)
 
   case (ann1, ann2) of
     (Annot (Just ty1), Annot (Just ty2)) -> do
@@ -307,7 +307,7 @@ whnf eq@(ObsEq a b ann1 ann2) = do
               resolve $ Sigma $ bind (string2Name "px", embed $ ObsEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
                                   (ObsEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
             _ -> fallback
-        _ -> (equate a b >> resolve TyUnit) `catchError` (\e -> return eq)
+        _ -> fallback
     _ -> fallback
 
 -- all other terms are already in WHNF

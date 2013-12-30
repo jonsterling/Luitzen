@@ -85,6 +85,7 @@ data Term =
 
    -- tactics
    | Trivial Annot
+   | Induction Annot [Term]
 
    -- inductive datatypes
    | TCon TCName [Term]      -- ^ type constructors (fully applied)
@@ -254,6 +255,7 @@ instance Erase Term where
 
   erase (Refl _ p)        = Refl noAnn (erase p)
   erase (Trivial _ )      = Trivial noAnn
+  erase (Induction _ xs)  = Induction noAnn (map erase xs)
   erase (ObsEq a b s t)   = ObsEq (erase a) (erase b) noAnn noAnn
   erase (ResolvedObsEq a b p) = ResolvedObsEq (erase a) (erase b) (erase p)
   -- DesignDecision: should we erase subst completely?
