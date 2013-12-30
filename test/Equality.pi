@@ -12,5 +12,8 @@ trans : [A:Type] [x:A] [y:A] [z:A] (pf1: x = z) (pf2: z = y) x = y
 trans = \[A] [x] [y] [z] pf1 pf2 .
   subst pf1 by pf2 at h. x = h
 
-axiom resp : [A:Type] [B:Type] [x:A] [y:A] (f: A -> B) (p: x = y) -> f x = f y
-axiom Resp : [A:Type] [x:A] [y:A] [P: A -> Type] (h: x = y) -> P x = P y
+resp : [A:Type] [B:Type] [x:A] [y:A] (f: A -> B) (p: x = y) -> f x = f y
+resp = \[A] [B] [x] [y] f p. subst refl by p at h. f x = f h
+
+Resp : [A:Type] [x:A] [y:A] [P: A -> Type] (p: x = y) -> P x = P y
+Resp = \[A] [x] [y] [P] p. subst refl by p at h. P x = P h
