@@ -6,7 +6,7 @@
 -- | Utilities for managing a typechecking context.
 module Environment
   (
-    TcMonad, runTcMonad,
+    TcMonad, (<|>), runTcMonad,
     Env,Hint(..),
     emptyEnv,
     lookupTy, lookupTyMaybe, lookupDef, lookupHint, lookupTCon,
@@ -29,7 +29,7 @@ import Text.PrettyPrint.HughesPJ
 import Text.ParserCombinators.Parsec.Pos(SourcePos)
 import Control.Monad.Reader
 import Control.Monad.Error
-import Control.Applicative
+import Control.Applicative hiding ((<|>))
 
 import Data.List
 import Data.Maybe (listToMaybe, catMaybes)
@@ -48,6 +48,9 @@ runTcMonad :: Env -> TcMonad a -> IO (Either Err a)
 runTcMonad env m = runErrorT $
                      runReaderT (runFreshMT m) env
 
+
+(<|>) :: TcMonad a -> TcMonad a -> TcMonad a
+x <|> y = catchError x (const y)
 
 -- | Marked locations in the source code
 data SourceLocation where

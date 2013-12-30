@@ -8,6 +8,9 @@ data Bool : Type where
 id : Bool -> Bool
 id = \x . x
 
+idid : id = id
+idid = trivial
+
 not : Bool -> Bool
 ind not x = case x of
   true -> false

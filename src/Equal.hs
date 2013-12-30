@@ -275,44 +275,40 @@ whnf eq@(ObsEq a b ann1 ann2) = do
   let fallback = (TyUnit <$ equate a b) `catchError` (\e -> return eq)
   let resolve p = ResolvedObsEq a b <$> whnf p
 
-  definitionally <- (Just <$> equate na nb) `catchError` (\e -> return Nothing)
-  case definitionally of
-    Just () -> resolve TyUnit
-    Nothing ->
-      case (ann1, ann2) of
-        (Annot (Just ty1), Annot (Just ty2)) -> do
-          nty1 <- whnf ty1
-          nty2 <- whnf ty2
-          case (nty1,nty2) of
-            (TyUnit, TyUnit) -> resolve TyUnit
-            (Quotient a1 r1, Quotient a2 r2) -> do
-              equate a1 a2
-              equate r1 r2
-              case (na, nb) of
-                (QBox xa _, QBox xb _) ->
-                  resolve $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
-                _ -> fallback
-            (Pi ep bnd1, Pi _ bnd2) -> do
-              ((x, etyA1), tyB1) <- unbind bnd1
-              ((y, etyA2), tyB2) <- unbind bnd2
-              case (na, nb) of
-                (Lam _ b1, Lam _ b2) ->
-                  let body = ObsEq (App na (Arg ep (Var x))) (App nb (Arg ep (Var y))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
-                  resolve $ Pi ep $ bind (x, etyA1) $
-                              Pi ep $ bind (y, etyA2) $
-                                Pi ep $ bind (string2Name "pxy", embed $ ObsEq (Var x) (Var y) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
-                                  body
-                _ -> fallback
-            (Sigma bnd1, Sigma bnd2) -> do
-              ((x, eTyA1), tyB1) <- unbind bnd1
-              ((y, eTyA2), tyB2) <- unbind bnd2
-              case (na, nb) of
-                (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
-                  resolve $ Sigma $ bind (string2Name "px", embed $ ObsEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
-                                      (ObsEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
-                _ -> fallback
-            _ -> (equate a b >> return TyUnit) `catchError` (\e -> return eq)
-        _ -> fallback
+  case (ann1, ann2) of
+    (Annot (Just ty1), Annot (Just ty2)) -> do
+      nty1 <- whnf ty1
+      nty2 <- whnf ty2
+      case (nty1,nty2) of
+        (TyUnit, TyUnit) -> resolve TyUnit
+        (Quotient a1 r1, Quotient a2 r2) -> do
+          equate a1 a2
+          equate r1 r2
+          case (na, nb) of
+            (QBox xa _, QBox xb _) ->
+              resolve $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
+            _ -> fallback
+        (Pi ep bnd1, Pi _ bnd2) -> do
+          ((x, etyA1), tyB1) <- unbind bnd1
+          ((y, etyA2), tyB2) <- unbind bnd2
+          case (na, nb) of
+            (Lam _ b1, Lam _ b2) ->
+              let body = ObsEq (App na (Arg ep (Var x))) (App nb (Arg ep (Var y))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
+              resolve $ Pi ep $ bind (x, etyA1) $
+                          Pi ep $ bind (y, etyA2) $
+                            Pi ep $ bind (string2Name "pxy", embed $ ObsEq (Var x) (Var y) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
+                              body
+            _ -> fallback
+        (Sigma bnd1, Sigma bnd2) -> do
+          ((x, eTyA1), tyB1) <- unbind bnd1
+          ((y, eTyA2), tyB2) <- unbind bnd2
+          case (na, nb) of
+            (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
+              resolve $ Sigma $ bind (string2Name "px", embed $ ObsEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
+                                  (ObsEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
+            _ -> fallback
+        _ -> (equate a b >> resolve TyUnit) `catchError` (\e -> return eq)
+    _ -> fallback
 
 -- all other terms are already in WHNF
 whnf tm = return tm

@@ -22,6 +22,7 @@ import Control.Monad.RWS.Lazy (MonadReader)
 import Data.List(nub)
 import qualified Data.Set as S
 import Unbound.LocallyNameless.Ops (unsafeUnbind)
+import Debug.Trace
 
 -- Type abbreviation for documentation
 type Type = Term
@@ -350,24 +351,44 @@ tcTerm (Ind ep1 bnd ann1) ann2 = do
 tcTerm t@(Trivial ann1) ann2 = do
   ann@(Just ty) <- matchAnnots ann1 ann2
   nty <- whnf ty
-  case nty of
-    TyUnit -> return (LitUnit, nty)
-    Sigma bnd -> do
-      ((x, unembed -> tyA), tyB) <- unbind bnd
-      tcTerm (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) ann
-    ResolvedObsEq x y ev -> tcTerm (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) (Just nty)
-    _ -> err [DS "Trivial tactic not effective for", DD ty]
+
+  let proofSearch = do
+        gam <- getCtx
+        let checkDecls ((Sig nm ty') : gs) =
+              do { mtm <- (lookupDef nm)
+                 ; (ntm, nty') <- checkType (Var nm) nty
+                 ; return $ (Var nm, nty)
+                 } <|> checkDecls gs
+            checkDecls (_ : gs) = checkDecls gs
+            checkDecls [] = err [DS "Could not find suitable value of type", DD nty, DS "in context", DD gam]
+        checkDecls gam
+
+  let conventional =
+        case nty of
+          TyUnit ->
+            return (LitUnit, nty)
+          Pi ep bnd -> do
+            ((x, unembed -> tyA), tyB) <- unbind bnd
+            tcTerm (Lam ep (bind (x, embed (Annot $ Just tyA)) (Trivial $ Annot $ Just tyB))) ann
+          Sigma bnd -> do
+            ((x, unembed -> tyA), tyB) <- unbind bnd
+            tcTerm (Prod (Trivial $ Annot $ Just tyA) (Trivial $ Annot $ Just tyB) (Annot ann)) ann
+          ResolvedObsEq x y ev -> tcTerm (Refl (Annot $ Just nty) (Trivial $ Annot $ Just ev)) (Just nty)
+          _ ->
+            err [DS "Trivial tactic not effective for type", DD nty]
+
+  proofSearch <|> conventional
 
 tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
     (Just ty@(ResolvedObsEq a b p)) -> do
-      (evidence', _) <- traceShow p (checkType evidence p)
+      (evidence', _) <- checkType evidence p
       return (Refl (Annot ann) evidence', ty)
     (Just ty@(ObsEq a b s t)) -> do
       equate a b
       return (Refl (Annot ann) evidence, ty)
-    _ -> err [DS "refl requires annotation"]
+    _ -> err [DS "refl requires annotation", DD ann]
 
 tcTerm (ResolvedObsEq a b p) Nothing = do
   (aa,aTy) <- inferType a

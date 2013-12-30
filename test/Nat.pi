@@ -99,7 +99,7 @@ hPlus0plus0' =
         succ m -> resp [Nat] [Nat] [plus0 n] [plus0' m] (\y. succ y) (hPlus0plus0' n m (resp [Nat] [Nat] [x] [y] pred xy))
 
 plus0plus0' : plus0 = plus0'
-plus0plus0' = refl hPlus0plus0'
+plus0plus0' = trivial
 
 testSubst : Nat
 testSubst = subst 0 by plus0plus0' at h. Nat
@@ -128,11 +128,11 @@ ind minus n = \m .
 minus_same_zero : (n : Nat) -> (minus n n = 0)
 ind minus_same_zero n =
     case n of
-      zero -> (refl : minus 0 0 = 0)
+      zero -> refl
       succ p ->
-        let ih = (minus_same_zero p : minus p p = 0) in
+        let ih = minus_same_zero p in
         let x  = (refl : minus p p = (minus (succ p) (succ p))) in
-        (subst ih by x at h. (h = 0))
+        (subst ih by refl at h. (h = 0))
 
 lemma_minus_zero_id : (n : Nat) -> (minus n 0 = n)
 lemma_minus_zero_id =   \n . case n of
