@@ -52,7 +52,6 @@ data Term =
 
    -- practical matters for surface language
    | Ann Term Term         -- ^ Annotated terms `( x : A )`
-   | Paren Term            -- ^ parenthesized term, useful for printing
    | Pos SourcePos Term    -- ^ marked source position, for error messages
 
    -- conveniences
@@ -207,7 +206,6 @@ unPosFlaky t = fromMaybe (newPos "unknown location" 0 0) (unPosDeep t)
 -- | Is this the syntax of a literal (natural) number
 isNumeral :: Term -> Maybe Int
 isNumeral (Pos _ t) = isNumeral t
-isNumeral (Paren t) = isNumeral t
 isNumeral (DCon c [] _) | c== "Zero" = Just 0
 isNumeral (DCon c [Arg _ t] _) | c==  "Succ" =
   do n <- isNumeral t ; return (n+1)
@@ -240,7 +238,6 @@ instance Erase Term where
   erase (Pi ep bnd)     = Pi ep (bind (x, embed (erase tyA)) (erase tyB))
     where ((x,unembed -> tyA), tyB) = unsafeUnbind bnd
   erase (Ann t1 t2)     = erase t1
-  erase (Paren t1)      = erase t1
   erase (Pos sp t)      = erase t
   erase (TrustMe _)     = TrustMe noAnn
   erase (Hole n _ )     = Hole n noAnn

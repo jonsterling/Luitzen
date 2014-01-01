@@ -606,7 +606,7 @@ expProdOrAnnotOrParens =
                   (Pi Runtime <$> (bind (x, embed a) <$> afterBinder))
          Colon a b -> return $ Ann a b
          Comma a b -> return $ Prod a b (Annot Nothing)
-         Nope a    -> return $ Paren a
+         Nope a    -> return $ a
 
 pattern :: LParser Pattern
 -- Note that 'dconstructor' and 'variable' overlaps, annoyingly.

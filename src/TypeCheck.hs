@@ -178,7 +178,6 @@ tcTerm (Ann tm ty) Nothing = do
   return (tm', ty'')
 
 tcTerm (Pos p tm) mTy = extendSourceLocation p tm $ tcTerm tm mTy
-tcTerm (Paren tm) mTy = tcTerm tm mTy
 
 tcTerm (Hole name ann1) ann2 = do
   Just expectedTy <- matchAnnots ann1 ann2
@@ -426,9 +425,9 @@ tcTerm (Subst tm p mbnd) Nothing = do
   (apf, tp) <- inferType p
   -- make sure that it is an equality between m and n
   (m,n)     <- ensureTyEq tp
-  (m', n') <- case mbnd of
+  (m', n')  <- case mbnd of
     Just bnd -> do
-      (x, a)   <- unbind bnd
+      (x, a) <- unbind bnd
       -- ensure that m' and n' are good
       (m',_) <- tcType (subst x m a)
       (n',_) <- tcType (subst x n a)
@@ -796,7 +795,6 @@ occursPositive  :: (Fresh m, MonadError Err m, MonadReader Env m) =>
 occursPositive tName (Pos p ty) =
   extendSourceLocation p ty $
     occursPositive tName ty
-occursPositive tName (Paren ty) = occursPositive tName ty
 occursPositive tName (Pi _ bnd) = do
   ((_,unembed->tyA), tyB) <- unbind bnd
   when (tName `S.member` fv tyA) $

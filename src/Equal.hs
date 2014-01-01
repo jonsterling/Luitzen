@@ -44,8 +44,6 @@ equate t1 t2 = do
 
         (Ann at1 _, at2) -> equate at1 at2
         (at1, Ann at2 _) -> equate at1 at2
-        (Paren at1, at2) -> equate at1 at2
-        (at1, Paren at2) -> equate at1 at2
         (Pos _ at1, at2) -> equate at1 at2
         (at1, Pos _ at2) -> equate at1 at2
 
@@ -231,22 +229,23 @@ whnf (QElim p s rsp q) = do
   nx <- whnf x
   whnf (App s (Arg Runtime nx))
 
-whnf t@(Ann tm ty) = whnf tm
-  -- err [DS "Unexpected arg to whnf:", DD t]
-whnf t@(Paren x)   = whnf x
-  -- err [DS "Unexpected arg to whnf:", DD t]
-whnf t@(Pos _ x)   = whnf x
+whnf (Ann tm ty) = do
+  tm' <- whnf tm
+  ty' <- whnf ty
+  return $ Ann tm' ty'
+whnf t@(Pos _ x) = whnf x
   -- err [DS "Unexpected position arg to whnf:", DD t]
 
 whnf (Let ep bnd)  = do
   ((x,unembed->rhs),body) <- unbind bnd
   whnf (subst x rhs body)
 
--- FIXME: This may be unsound
 whnf (Subst tm pf annot) = do
   tm' <- whnf tm
   pf' <- whnf pf
-  return (Subst tm' pf' annot)
+  case pf' of
+    Refl _ _ -> return tm'
+    _ -> return $ Subst tm' pf' annot
 
 
 whnf (Case scrut mtchs annot) = do

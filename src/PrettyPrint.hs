@@ -332,17 +332,12 @@ instance Display Term where
      let wrapf f = case f of
             Var _         -> id
             App _ _       -> id
-            Paren _       -> id
             Pos _ a       -> wrapf a
             Ann _ _       -> id
             TrustMe _     -> id
             Hole _ _      -> braces
             _             -> parens
      return $ wrapf f df <+> dx
-
-  display (Paren e) = do
-     de <- display e
-     return $ (parens de)
 
   display (Pos _ e) = display e
 

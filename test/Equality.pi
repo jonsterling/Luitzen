@@ -17,3 +17,6 @@ resp = \[A] [B] [x] [y] f p. subst refl by p at h. f x = f h
 
 Resp : [A:Type] [x:A] [y:A] [P: A -> Type] (p: x = y) -> P x = P y
 Resp = \[A] [x] [y] [P] p. subst refl by p at h. P x = P h
+
+Transport : [A:Type] [x:A] [y:A] [P : A -> Type] (p : x = y) -> P x -> P y
+Transport = \[A] [x] [y] [P] p px . subst px by (Resp [A] [x] [y] [P] p)
