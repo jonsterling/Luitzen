@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -Wall -fno-warn-unused-matches #-}
 
 -- | Compare two terms for equality
-module Equal (whnf,equate,ensureType,ensurePi, ensureTyEq,  ensureTCon, ensureQuotient) where
+module Equal (whnf,equate,ensureType,ensurePi, ensureTyEq,  ensureTCon, ensureQuotient, resolveEq) where
 
 import Syntax
 import Environment
@@ -57,11 +57,7 @@ equate t1 t2 = do
           equate rhs1 rhs2
           equate body1 body2
 
-        (ObsEq a1 b1 annS1 annT1, ObsEq a2 b2 annS2 annT2) -> do
-          equate a1 a2
-          equate b1 b2
-
-        (ResolvedObsEq a1 b1 p1, ResolvedObsEq a2 b2 p2) -> do
+        (TyEq a1 b1 annS1 annT1, TyEq a2 b2 annS2 annT2) -> do
           equate a1 a2
           equate b1 b2
 
@@ -167,8 +163,7 @@ ensureTyEq :: Term -> TcMonad (Term,Term)
 ensureTyEq ty = do
   nf <- whnf ty
   case nf of
-    ObsEq m n s t -> return (m, n)
-    ResolvedObsEq m n p -> return (m, n)
+    TyEq m n s t -> return (m, n)
     _ -> err [DS "Expected an equality type, instead found", DD nf]
 
 
@@ -268,51 +263,58 @@ whnf (Case scrut mtchs annot) = do
     _ -> return (Case nf mtchs annot)
 
 
-whnf (ObsEq a b ann1 ann2) = do
+whnf (TyEq a b (Annot mtyA) (Annot mtyB)) = do
   na <- whnf a
   nb <- whnf b
-
-  let resolve p = ResolvedObsEq na nb <$> whnf p
-  let fallback = (equate na nb >> resolve TyUnit) `catchError` (\e -> return $ ObsEq na nb ann1 ann2)
-
-  case (ann1, ann2) of
-    (Annot (Just ty1), Annot (Just ty2)) -> do
-      nty1 <- whnf ty1
-      nty2 <- whnf ty2
-      case (nty1,nty2) of
-        (TyUnit, TyUnit) -> resolve TyUnit
-        (Quotient a1 r1, Quotient a2 r2) -> do
-          equate a1 a2
-          equate r1 r2
-          case (na, nb) of
-            (QBox xa _, QBox xb _) ->
-              resolve $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
-            _ -> fallback
-        (Pi ep bnd1, Pi _ bnd2) -> do
-          ((x, etyA1), tyB1) <- unbind bnd1
-          ((y, etyA2), tyB2) <- unbind bnd2
-          case (na, nb) of
-            (Lam _ b1, Lam _ b2) ->
-              let body = ObsEq (App na (Arg ep (Var x))) (App nb (Arg ep (Var y))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
-              resolve $ Pi ep $ bind (x, etyA1) $
-                          Pi ep $ bind (y, etyA2) $
-                            Pi ep $ bind (string2Name "pxy", embed $ ObsEq (Var x) (Var y) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
-                              body
-            _ -> fallback
-        (Sigma bnd1, Sigma bnd2) -> do
-          ((x, eTyA1), tyB1) <- unbind bnd1
-          ((y, eTyA2), tyB2) <- unbind bnd2
-          case (na, nb) of
-            (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
-              resolve $ Sigma $ bind (string2Name "px", embed $ ObsEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
-                                  (ObsEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
-            _ -> fallback
-        _ -> fallback
-    _ -> fallback
+  nmtyA <- case mtyA of
+    Just tyA -> Just <$> whnf tyA
+    Nothing -> return Nothing
+  nmtyB <- case mtyB of
+    Just tyB -> Just <$> whnf tyB
+    Nothing -> return Nothing
+  return $ TyEq na nb (Annot nmtyA) (Annot nmtyB)
 
 -- all other terms are already in WHNF
 whnf tm = return tm
 
+resolveEq :: Term -> Term -> Term -> Term -> TcMonad (Maybe Term)
+resolveEq x y tyX tyY = do
+  nx <- whnf x
+  ny <- whnf y
+  ntyX <- whnf tyX
+  ntyY <- whnf tyY
+
+  let fallback = (equate nx ny >> return (Just TyUnit)) `catchError` (\e -> return Nothing)
+
+  case (ntyX, ntyY) of
+    (TyUnit, TyUnit) -> return $ Just TyUnit
+    (Quotient a1 r1, Quotient a2 r2) -> do
+      equate a1 a2
+      equate r1 r2
+      case (nx, ny) of
+        (QBox xa _, QBox xb _) ->
+          return $ Just $ App (App r1 (Arg Runtime xa)) (Arg Runtime xb)
+        _ -> fallback
+    (Pi ep bnd1, Pi _ bnd2) -> do
+      ((xn, etyA1), tyB1) <- unbind bnd1
+      ((yn, etyA2), tyB2) <- unbind bnd2
+      case (nx, ny) of
+        (Lam _ b1, Lam _ b2) ->
+          let body = TyEq (App nx (Arg ep (Var xn))) (App ny (Arg ep (Var yn))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
+          return $ Just $ Pi ep $ bind (xn, etyA1) $
+                            Pi ep $ bind (yn, etyA2) $
+                              Pi ep $ bind (string2Name "pxy", embed $ TyEq (Var xn) (Var yn) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
+                                body
+        _ -> fallback
+    (Sigma bnd1, Sigma bnd2) -> do
+      ((_, eTyA1), tyB1) <- unbind bnd1
+      ((_, eTyA2), tyB2) <- unbind bnd2
+      case (nx, ny) of
+        (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
+          return $ Just $ Sigma $ bind (string2Name "px", embed $ TyEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
+                            (TyEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
+        _ -> fallback
+    _ -> fallback
 
 -- | Determine whether the pattern matches the argument
 -- If so return the appropriate substitution

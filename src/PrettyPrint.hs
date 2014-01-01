@@ -376,7 +376,7 @@ instance Display Term where
                      text "by" <+> db,
                      dat]
 
-  display (ObsEq a b s t)   = do
+  display (TyEq a b s t)   = do
     let disp' (x, Annot Nothing) = display x
         disp' (x, Annot (Just ty)) = do
           dx <- display x
@@ -386,12 +386,6 @@ instance Display Term where
     da <- disp' (a, s)
     db <- disp' (b, t)
     return $ da <+> text "=" <+> db
-
-  display (ResolvedObsEq a b p)   = do
-    da <- display a
-    db <- display b
-    dp <- display p
-    return $ da <+> text "=" <+> db <+> text "~~>" <+> dp
 
   display (Contra ty mty)  = do
      dty <- display ty

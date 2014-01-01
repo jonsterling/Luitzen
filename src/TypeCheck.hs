@@ -82,7 +82,7 @@ tcTerm (QElim p s rsp q) Nothing = do
   (arsp, tyRsp) <- checkType rsp $ Pi Runtime $ bind (varX, embed carrier) $
                                   (Pi Runtime (bind (varY, embed carrier)
                                     (Pi Runtime (bind (string2Name "rpf", embed (App (App rel (Arg Runtime (Var varX))) (Arg Runtime (Var varY))))
-                                      (ObsEq (App s (Arg Runtime (Var varX))) (App s (Arg Runtime (Var varY))) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
+                                      (TyEq (App s (Arg Runtime (Var varX))) (App s (Arg Runtime (Var varY))) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
 
   nf <- whnf (App p (Arg Runtime q))
   return (QElim ap as arsp aq, nf)
@@ -112,10 +112,7 @@ tcTerm (Lam ep1 bnd) (Just (Pi ep2 bnd2)) | ep1 == ep2 = do
 tcTerm (Lam ep1 _) (Just (Pi ep2 _))  =
   err [DS "Epsilon", DD ep1,
        DS "on lambda does not match expected", DD ep2]
-tcTerm e@(Lam _ bnd) (Just nf) =
-  case nf of
-    ty@(ResolvedObsEq _ _ p) -> tcTerm e (Just p)
-    _ -> err [DS "Lambda expression has a function type, not", DD nf]
+tcTerm e@(Lam _ bnd) (Just nf) = err [DS "Lambda expression has a function type, not", DD nf]
 
 -- infer the type of a lambda expression, when an annotation
 -- on the binder is present
@@ -315,7 +312,6 @@ tcTerm (OrdAx ann1) ann2 = do
 tcTerm (Ind ep1 bnd ann1) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
-    Just ty@(ResolvedObsEq _ _ p) -> tcTerm (Ind ep1 bnd ann1) (Just p)
     Just ty@(Pi ep2 bnd2) | ep1 == ep2 -> do
       ((f,x), body) <- unbind bnd
       ((y,unembed -> tyA), tyB) <- unbind bnd2
@@ -368,7 +364,7 @@ tcTerm t@(Induction ann1@(Annot ty1) ss) ann2 = do
         return $ Case x matches (Annot ann)
 
   switch <- performInduction ss
-  checkType switch (traceShow (disp switch) $ ty)
+  checkType switch ty
 
 tcTerm t@(Trivial ann1) ann2 = do
   ann@(Just ty) <- matchAnnots ann1 ann2
@@ -395,7 +391,8 @@ tcTerm t@(Trivial ann1) ann2 = do
           Sigma bnd -> do
             ((x, unembed -> tyA), tyB) <- unbind bnd
             checkType (Prod (Trivial $ Annot Nothing) (Trivial $ Annot Nothing) (Annot ann)) nty
-          ResolvedObsEq x y ev ->
+          TyEq x y (Annot (Just tyX)) (Annot (Just tyY)) -> do
+            Just ev <- resolveEq x y tyX tyY
             checkType (Refl (Annot Nothing) (Trivial $ Annot $ Just ev)) nty
           _ -> do
             gam <- getLocalCtx
@@ -406,23 +403,23 @@ tcTerm t@(Trivial ann1) ann2 = do
 tcTerm (Refl ann1 evidence) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of
-    (Just ty@(ResolvedObsEq a b p)) -> do
-      (evidence', _) <- checkType evidence p
-      return (Refl (Annot ann) evidence', ty)
-    (Just ty@(ObsEq a b s t)) -> do
-      equate a b
-      return (Refl (Annot ann) evidence, ty)
+    Just ty@(TyEq a b (Annot (Just tyA)) (Annot (Just tyB))) -> do
+      mp <- resolveEq a b tyA tyB
+      case mp of
+        Just p -> do
+          (evidence', _) <- checkType evidence p
+          return (Refl (Annot ann) evidence', ty)
+        Nothing -> do
+          equate a b
+          return (Refl (Annot ann) evidence, ty)
     _ -> err [DS "refl requires annotation", DD ann]
 
-tcTerm (ResolvedObsEq a b p) Nothing = do
-  (aa,aTy) <- inferType a
-  (ab,bTy) <- checkType b aTy
-  return (ResolvedObsEq aa ab p, Type 0)
-
-tcTerm (ObsEq a b _ _) ann2 = do
-  (aa, aTy) <- inferType a
-  (ab, bTy) <- checkType b aTy
-  return (ObsEq aa ab (Annot $ Just aTy) (Annot $ Just bTy), Type 0)
+tcTerm (TyEq a b (Annot mtyA) (Annot mtyB)) ann2 = do
+  (na, tyA) <- tcTerm a mtyA
+  (nb, tyB) <- tcTerm b mtyB
+  (_, i) <- tcType tyA
+  (_, j) <- tcType tyB
+  return (TyEq na nb (Annot $ Just tyA) (Annot $ Just tyB), Type (max i j))
 
 tcTerm (Subst tm p mbnd) Nothing = do
   -- infer the type of the proof p
