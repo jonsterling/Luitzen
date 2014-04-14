@@ -9,11 +9,11 @@ module Nat where
 import Equality
 import Bool
 
-data Nat : Type where
+data ℕ : Type where
   zero
-  succ of (x : Nat)
+  succ of (x : ℕ)
 
-lt : (m : Nat) (n : Nat) Bool
+lt : (m : ℕ) (n : ℕ) Bool
 ind lt m = \n. case m of
   zero -> case n of
     zero -> false
@@ -22,12 +22,12 @@ ind lt m = \n. case m of
     zero -> false
     succ n' -> lt m' n'
 
-is_zero : Nat -> Bool
+is_zero : ℕ -> Bool
 is_zero = \ x . case x of
   zero -> true
   succ n' -> false
 
-pred : Nat -> Nat
+pred : ℕ -> ℕ
 pred = \n . case n of
   zero -> zero
   succ n' -> n'
@@ -42,7 +42,7 @@ pred = \n . case n of
 -- There is a strong argument for adding a new expression form for such
 -- inversions. :-)
 
-sm_eq_Sn__m_eq_n : (m:Nat) -> (n:Nat) -> (succ m = succ n) -> m = n
+sm_eq_Sn__m_eq_n : (m:ℕ) -> (n:ℕ) -> (succ m = succ n) -> m = n
 sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
   let pSm_eq_m    = (refl : pred (succ m) = m) in
   let pSn_eq_n    = (refl : pred (succ n) = n) in
@@ -55,11 +55,11 @@ sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
   by pSn_eq_n at h. m = h
 
 
-m_eq_n_Sm_eq_Sn : (m:Nat) -> (n:Nat) -> m = n -> (succ m = succ n)
+m_eq_n_Sm_eq_Sn : (m:ℕ) -> (n:ℕ) -> m = n -> (succ m = succ n)
 m_eq_n_Sm_eq_Sn = \m n pf .
   subst refl by pf at x. (succ m = succ x)
 
-nat_eq : Nat -> Nat -> Bool
+nat_eq : ℕ -> ℕ -> Bool
 ind nat_eq x = \ y .
   case x of
      zero -> case y of
@@ -69,50 +69,50 @@ ind nat_eq x = \ y .
         zero -> false
         succ n -> nat_eq m n
 
-plus : Nat -> Nat -> Nat
+plus : ℕ -> ℕ -> ℕ
 ind plus n = \m .
   case n of
     zero -> m
     succ pred -> succ (plus pred m)
 
-times : Nat -> Nat -> Nat
+times : ℕ -> ℕ -> ℕ
 ind times n = \m .
   case n of
     zero -> zero
     succ n' -> plus m (times n' m)
 
-plus0 : Nat -> Nat
+plus0 : ℕ -> ℕ
 plus0 = \x . plus x 0
 
-plus0' : Nat -> Nat
+plus0' : ℕ -> ℕ
 plus0' = plus 0
 
-hPlus0plus0' : (x : Nat) (y : Nat) (xy : x = y) -> plus0 x = plus0' y
+hPlus0plus0' : (x : ℕ) (y : ℕ) (xy : x = y) -> plus0 x = plus0' y
 hPlus0plus0' =
   \x y xy.
     case x of
       zero -> induction [y]
       succ n -> case y of
         zero -> trivial
-        succ m -> resp [Nat] [Nat] [plus0 n] [plus0' m] (\y. succ y) (hPlus0plus0' n m (resp [Nat] [Nat] [x] [y] pred xy))
+        succ m -> resp [ℕ] [ℕ] [plus0 n] [plus0' m] (\y. succ y) (hPlus0plus0' n m (resp [ℕ] [ℕ] [x] [y] pred xy))
 
 plus0plus0' : plus0 = plus0'
 plus0plus0' = trivial
 
-testSubst : Nat
-testSubst = subst 0 by plus0plus0' at h. Nat
+testSubst : ℕ
+testSubst = subst 0 by plus0plus0' at h. ℕ
 
 testCanonical : testSubst = 0
 testCanonical = refl
 
-mult : Nat -> Nat -> Nat
+mult : ℕ -> ℕ -> ℕ
 ind mult n = \m .
   case n of
     zero -> zero
     succ pred -> plus m (mult pred m)
 
 
-minus : Nat -> Nat -> Nat
+minus : ℕ -> ℕ -> ℕ
 ind minus n = \m .
    case n of
      zero -> zero
@@ -123,7 +123,7 @@ ind minus n = \m .
 -------------------------------------------------------
 -- Reasoning about datatypes
 
-minus_same_zero : (n : Nat) -> (minus n n = 0)
+minus_same_zero : (n : ℕ) -> (minus n n = 0)
 ind minus_same_zero n =
     case n of
       zero -> refl
@@ -132,19 +132,19 @@ ind minus_same_zero n =
         let x  = (refl : minus p p = (minus (succ p) (succ p))) in
         (subst ih by x at h. (h = 0))
 
-lemma_minus_zero_id : (n : Nat) -> (minus n 0 = n)
+lemma_minus_zero_id : (n : ℕ) -> (minus n 0 = n)
 lemma_minus_zero_id =   \n . case n of
     zero -> (refl : minus 0 0 = 0)
     succ n' -> (refl : minus (succ n') 0 = succ n')
 
 
-lemma_minus_plus_id : (m : Nat) -> (n : Nat) -> ((minus (plus m n) m) = n)
+lemma_minus_plus_id : (m : ℕ) -> (n : ℕ) -> ((minus (plus m n) m) = n)
 ind lemma_minus_plus_id m = \n .
   case m of
      zero -> lemma_minus_zero_id n
      succ m' -> lemma_minus_plus_id m' n
 
-plus_associates : (i:Nat) -> (j:Nat) -> (k:Nat) -> plus (plus i j) k = plus i (plus j k)
+plus_associates : (i:ℕ) -> (j:ℕ) -> (k:ℕ) -> plus (plus i j) k = plus i (plus j k)
 plus_associates = ind pa i = \j k .
   case i of
      -- `refl` away `zero`s on the left of `(+)`: (0+j)+k = j+k = 0+(j+k)

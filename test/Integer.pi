@@ -2,12 +2,12 @@ module Integer where
 import Nat
 import Bool
 
-data Integer : Type where
+data ℤ : Type where
   zer
-  onePlus of (n:Nat)
-  negOneMinus of (n:Nat)
+  onePlus of (n:ℕ)
+  negOneMinus of (n:ℕ)
 
-iplus : Integer -> Integer -> Integer
+iplus : ℤ -> ℤ -> ℤ
 ind iplus x = \y. case x of
   zer -> y
   onePlus n -> case y of
@@ -27,16 +27,16 @@ ind iplus x = \y. case x of
         succ mn -> onePlus mn
     negOneMinus m -> negOneMinus (succ (plus n m))
 
-negate : Integer -> Integer
+negate : ℤ -> ℤ
 ind negate x = case x of
   zer -> zer
   onePlus n -> negOneMinus n
   negOneMinus n -> onePlus n
 
-iminus : Integer -> Integer -> Integer
+iminus : ℤ -> ℤ -> ℤ
 iminus = \x y. iplus x (negate y)
 
-itimes : Integer -> Integer -> Integer
+itimes : ℤ -> ℤ -> ℤ
 ind itimes x = \y. case x of
   zer -> zer
   onePlus n -> case y of
@@ -48,12 +48,12 @@ ind itimes x = \y. case x of
     onePlus m -> negOneMinus (pred (times (succ n) (succ m)))
     negOneMinus m -> onePlus (pred (times (succ n) (succ m)))
 
-pos : Nat -> Integer
+pos : ℕ -> ℤ
 pos = \x. case x of
   zero -> zer
   succ n -> onePlus n
 
-neg : Nat -> Integer
+neg : ℕ -> ℤ
 neg = \x . case x of
   zero -> zer
   succ n -> negOneMinus n

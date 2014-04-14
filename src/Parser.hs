@@ -183,8 +183,8 @@ trellysStyle = Token.LanguageDef
                 , Token.commentEnd     = "-}"
                 , Token.commentLine    = "--"
                 , Token.nestedComments = True
-                , Token.identStart     = letter
-                , Token.identLetter    = alphaNum <|> oneOf "_'"
+                , Token.identStart     = letter <|> oneOf "~"
+                , Token.identLetter    = alphaNum <|> oneOf "_'⁺~"
                 , Token.opStart	       = oneOf ":!#$%&*+.,/<=>?@\\^|-"
                 , Token.opLetter       = oneOf ":!#$%&*+.,/<=>?@\\^|-"
                 , Token.caseSensitive  = True
@@ -295,7 +295,7 @@ natenc =
      return $ encode n
    where encode 0 = DCon "zero" [] natty
          encode n = DCon "succ" [Arg Runtime (encode (n-1))] natty
-         natty    = Annot $ Just (TCon (string2Name "Nat") [])
+         natty    = Annot $ Just (TCon (string2Name "ℕ") [])
 
 moduleImports :: LParser Module
 moduleImports = do
@@ -674,7 +674,7 @@ sigmaTy = do
   x <- variable
   colon
   a <- expr
-  reservedOp "|"
+  reservedOp "&"
   b <- expr
   reservedOp "}"
   return (Sigma (bind (x, embed a) b))
