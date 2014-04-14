@@ -48,8 +48,8 @@ denominator' = \p. pcase p of (n, d) -> d
 -- numerator and a nonzero denominator.
 
 numerator : ℚ -> [|ℤ|]
-numerator = \q. expose q under (\x. [|ℤ|]) with (\x. <numerator' x>) by (\x y p. _)
+numerator = \q. expose q under (\x. [|ℤ|]) with (\x. <numerator' x>) by (\x y x~y. _)
 
 denominator : ℚ -> [|ℕ⁺|]
-denominator = \q. expose q under (\x. [|ℕ⁺|]) with (\x. <denominator' x>) by (\x y p. _)
+denominator = \q. expose q under (\x. [|ℕ⁺|]) with (\x. <denominator' x>) by (\x y x~y. _)
 

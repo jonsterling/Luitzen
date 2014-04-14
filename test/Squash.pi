@@ -5,4 +5,4 @@ isContr = \A. (x:A) (y:A) x = y
 
 -- If a type is contractible, then it may be unsquashed safely
 unsquash : (A:Type) (isContr A) -> [|A|] -> A
-unsquash = \A h q. expose q under (\x. A) with (\x. x) by (\x y p. h x y)
+unsquash = \A h q. expose q under (\x. A) with (\x. x) by (\x y x~y. h x y)
