@@ -10,3 +10,7 @@ unsquash = \A h q. expose q under (\x. A) with (\x. x) by (\x y x~y. h x y)
 -- It doesn't do us much good, but we can recapitulate the eliminator for quotients internally
 extract : (A:Type) (B:Type) (Q~: A -> A -> Type) (f: A -> B) (coh: (x:A) (y:A) (x~y: Q~ x y) f x = f y) (q: A // Q~) -> B
 extract = \A B Q~ f coh q. expose q under (\x. B) with f by _
+
+unquotient : (A:Type) (Q~: A -> A -> Type) (qtriv: (x:A)(y:A)(x~y: Q~ x y) x = y) (q: A // Q~) -> A
+unquotient = \A Q~ qtriv q. expose q under (\x. A) with (\x. x) by qtriv
+
