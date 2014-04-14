@@ -26,7 +26,7 @@ twoFourths : Rational
 twoFourths = <(pos 2, (4, \[p]. contra p))>
 
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
-oneHalfEqualsTwoFourths = refl refl
+oneHalfEqualsTwoFourths = refl _
 
 numerator' : PreRational -> Integer
 numerator' = \p. pcase p of (n, d) -> n
@@ -48,8 +48,8 @@ denominator' = \p. pcase p of (n, d) -> d
 -- numerator and a nonzero denominator.
 
 numerator : Rational -> [|Integer|]
-numerator = \q. expose q under (\x. [|Integer|]) with (\x. <numerator' x>) by (\x y p. refl)
+numerator = \q. expose q under (\x. [|Integer|]) with (\x. <numerator' x>) by (\x y p. _)
 
 denominator : Rational -> [|NatNonzero|]
-denominator = \q. expose q under (\x. [|NatNonzero|]) with (\x. <denominator' x>) by (\x y p. refl)
+denominator = \q. expose q under (\x. [|NatNonzero|]) with (\x. <denominator' x>) by (\x y p. _)
 

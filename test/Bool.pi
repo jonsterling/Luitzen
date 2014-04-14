@@ -9,7 +9,7 @@ id : Bool -> Bool
 id = \x . x
 
 idid : id = id
-idid = trivial
+idid = _
 
 not : Bool -> Bool
 ind not x = case x of

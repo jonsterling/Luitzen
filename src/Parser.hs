@@ -393,7 +393,7 @@ hole = Hole <$> name <*> return (Annot Nothing)
     name = braces $ string2Name <$> (reservedOp "?" *> many (noneOf "{}"))
 
 trivialTactic :: LParser Term
-trivialTactic = Trivial (Annot Nothing) <$ reserved "trivial"
+trivialTactic = Trivial (Annot Nothing) <$ (reserved "trivial" <|> reservedOp "_")
 
 inductionTactic :: LParser Term
 inductionTactic = reserved "induction" *> (Induction (Annot Nothing) <$> brackets scrutinees)
