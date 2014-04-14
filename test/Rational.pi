@@ -17,7 +17,7 @@ RatEquiv = \p q. pcase p of
   (d', dnz') -> (itimes n (pos d')) = (itimes n' (pos d))
 
 Rational : Type
-Rational = PreRational / RatEquiv
+Rational = PreRational // RatEquiv
 
 oneHalf : Rational
 oneHalf = <(pos 1, (2, \[p]. contra p))>

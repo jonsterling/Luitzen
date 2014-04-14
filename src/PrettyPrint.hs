@@ -254,7 +254,7 @@ instance Display Term where
   display (Quotient t r) = do
     dt <- display t
     dr <- display r
-    return $ dt <+> text "/" <+> dr
+    return $ dt <+> text "//" <+> dr
 
   display (QBox x (Annot mty)) = do
     dx <- display x

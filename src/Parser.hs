@@ -415,7 +415,7 @@ expr,term,factor :: LParser Term
 expr = Pos <$> getPosition <*> buildExpressionParser table term
   where table = [[ifix  AssocLeft "<" Smaller],
                  [ifix  AssocLeft "=" mkEq],
-                 [ifix  AssocLeft "/" Quotient],
+                 [ifix  AssocLeft "//" Quotient],
                  [ifixM AssocRight "->" mkArrow]
                 ]
         ifix  assoc op f = Infix (reservedOp op >> return f) assoc
