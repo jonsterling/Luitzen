@@ -1,0 +1,10 @@
+module Squash where
+
+Squash : Type -> Type
+Squash = \A. A / (\ x y. One)
+
+axiom abort : (A : Type) -> Zero -> A
+
+emptyNotInh : Squash Zero -> Zero
+emptyNotInh = \q. expose q under (\x. Zero) with (\x. x) by (\x y z . abort (x = y) x)
+

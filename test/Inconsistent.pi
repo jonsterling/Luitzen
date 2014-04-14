@@ -1,0 +1,31 @@
+module Inconsistent where
+
+data bool' : Type where
+  true
+  false
+
+rel : (a : bool') (b : bool') Type
+rel =
+  \a b.
+    case a of
+      true -> case b of
+        true -> Zero
+        false -> One
+      false -> case b of
+        true -> One
+        false -> Zero
+
+fucked : Type
+fucked = bool' / rel
+
+fuckedTrue : fucked
+fuckedTrue = <true>
+
+fuckedFalse : fucked
+fuckedFalse = <false>
+
+test : <true:fucked> = <false:fucked>
+test = refl
+
+test2 : <true:fucked> = <true:fucked> -> Zero
+test2 = \p . {?fuck}
