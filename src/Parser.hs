@@ -213,7 +213,7 @@ trellysStyle = Token.LanguageDef
                   ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
-                 ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_","|","{", "}"]
+                 ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_", "[|", "|]", "|", "{", "}"]
                 }
 
 tokenizer :: Token.GenTokenParser String [Column] (StateT ConstructorNames FreshM)
@@ -460,6 +460,7 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , pcaseExpr  <?> "a pcase"
                 , exposeExpr <?> "an expose"
                 , sigmaTy    <?> "a sigma type"
+                , squashTy   <?> "a squash type"
                 , qboxExpr   <?> "a quotient box"
                 , substExpr  <?> "a subst"
                 , ordax      <?> "ord"
@@ -545,8 +546,8 @@ letExpr =
 impProd :: LParser Term
 impProd =
   do (x,tyA, mc) <- brackets
-       (try ((,,) <$> variable <*> (colon >> expr) <*> constraint)
-        <|> ((,,) <$> fresh wildcardName <*> expr) <*> constraint)
+       (try ((,,) <$> variable <*> (colon >> expr) <*> return Nothing)
+        <|> ((,,) <$> fresh wildcardName <*> expr) <*> return Nothing)
      optional (reservedOp "->")
      tyB <- expr
      return $ case mc of
@@ -572,9 +573,6 @@ exposeExpr = do
   reserved "by"
   rsp <- expr
   return $ QElim p s rsp q
-
-constraint :: LParser (Maybe Term)
-constraint = option Nothing $ reservedOp "|" >> Just <$> expr
 
 -- Function types have the syntax '(x:A) -> B'.  This production deals
 -- with the ambiguity caused because these types, annotations and
@@ -664,6 +662,11 @@ substExpr = do
 
 contra :: LParser Term
 contra = Contra <$> (reserved "contra" *> expr) <*> return (Annot Nothing)
+
+squashTy :: LParser Term
+squashTy = do
+  x <- between (reservedOp "[|") (reservedOp "|]") expr
+  return (TySquash x) <?> "Squash"
 
 sigmaTy :: LParser Term
 sigmaTy = do

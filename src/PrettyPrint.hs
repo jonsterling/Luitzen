@@ -247,6 +247,10 @@ instance Display Term where
                      else
                        return $ text "Type" <+> (text $ show n)
 
+  display (TySquash t) = do
+    dt <- display t
+    return $ text "[|" <+> dt <+> text "|]"
+
   display (Quotient t r) = do
     dt <- display t
     dr <- display r

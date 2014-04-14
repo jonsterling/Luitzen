@@ -273,6 +273,16 @@ whnf (TyEq a b (Annot mtyA) (Annot mtyB)) = do
     Nothing -> return Nothing
   return $ TyEq na nb (Annot nmtyA) (Annot nmtyB)
 
+whnf (TySquash a) = do
+  na <- whnf a
+  return $
+    Quotient na $
+      Lam Runtime $
+        bind (string2Name "x", embed (Annot (Just na))) $
+          Lam Runtime $
+            bind (string2Name "y", embed (Annot (Just na))) $
+              TyUnit
+
 -- all other terms are already in WHNF
 whnf tm = return tm
 

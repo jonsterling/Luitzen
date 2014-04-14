@@ -55,6 +55,11 @@ tcTerm q@(Quotient t r) Nothing = do
                               (Type 0)))))
   return $ (q, Type 0)
 
+tcTerm sq@(TySquash a) Nothing = do
+  nsq <- whnf sq
+  tcTerm nsq Nothing
+
+
 tcTerm q@(QBox x (Annot mty)) Nothing = do
   case mty of
     Nothing -> err [DS "Could not infer type of quotient", DD q]

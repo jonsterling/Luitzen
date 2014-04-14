@@ -2,7 +2,6 @@ module Rational where
 
 import Integer
 import Nat
-import Squash
 
 NatNonzero : Type
 NatNonzero = {d : Nat | [d = zero] -> Zero}
@@ -48,9 +47,9 @@ denominator' = \p. pcase p of (n, d) -> d
 -- But you can use squash types to say that there *merely exists* a
 -- numerator and a nonzero denominator.
 
-numerator : Rational -> Squash Integer
-numerator = \q. expose q under (\x. Squash Integer) with (\x. <numerator' x>) by (\x y p. refl)
+numerator : Rational -> [|Integer|]
+numerator = \q. expose q under (\x. [|Integer|]) with (\x. <numerator' x>) by (\x y p. refl)
 
-denominator : Rational -> Squash NatNonzero
-denominator = \q. expose q under (\x. Squash NatNonzero) with (\x. <denominator' x>) by (\x y p. refl)
+denominator : Rational -> [|NatNonzero|]
+denominator = \q. expose q under (\x. [|NatNonzero|]) with (\x. <denominator' x>) by (\x y p. refl)
 

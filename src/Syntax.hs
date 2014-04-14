@@ -65,6 +65,8 @@ data Term =
    | TyUnit                -- ^ The type with a single inhabitant `One`
    | LitUnit               -- ^ The inhabitant, written tt
 
+   | TySquash Term         -- ^ Squash types
+
    | Let Epsilon (Bind (TName, Embed Term) Term)
      -- ^ let expression, introduces a new definition in the ctx
 
@@ -242,6 +244,7 @@ instance Erase Term where
   erase (TrustMe _)     = TrustMe noAnn
   erase (Hole n _ )     = Hole n noAnn
   erase (TyUnit)        = TyUnit
+  erase (TySquash t)    = TySquash (erase t)
   erase (TyEmpty)       = TyEmpty
   erase (LitUnit)       = LitUnit
   erase (Let ep bnd)    = case ep of
