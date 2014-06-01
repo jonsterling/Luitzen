@@ -69,27 +69,30 @@ tcTerm (QBox x ann1) ann2 = do
   Just ty <- matchAnnots ann1 ann2
   (carrier, rel) <- ensureQuotient ty
   (ax, _) <- checkType x carrier
-  return $ (QBox ax (Annot $ Just ty), ty)
+  return $ (QBox ax $ Annot $ Just ty, ty)
 
 tcTerm (QElim p s rsp q) Nothing = do
   (aq, tyQ) <- inferType q
   (carrier, rel) <- ensureQuotient tyQ
 
   let varX = string2Name "x"
-  let varY = string2Name "Y"
+  let varY = string2Name "y"
+  let varRpf = string2Name "rpf"
 
-  tyPx <- whnf $ App p (QBox (Var varX) (Annot $ Just tyQ))
-  tyPy <- whnf $ App p (QBox (Var varY) (Annot $ Just tyQ))
+  tyPx <- whnf $ p @. (QBox (Var varX) $ Annot $ Just tyQ)
+  tyPy <- whnf $ p @. (QBox (Var varY) $ Annot $ Just tyQ)
 
-  (ap, tyP) <- checkType p (Pi (bind (varX, embed tyQ) (Type 0)))
-  (as, tyS) <- checkType s (Pi (bind (varX, embed carrier) tyPx))
+  (ap, tyP) <- checkType p . Pi . bind (varX, embed tyQ) $ Type 0
+  (as, tyS) <- checkType s . Pi . bind (varX, embed carrier) $ tyPx
 
-  (arsp, tyRsp) <- checkType rsp $ Pi $ bind (varX, embed carrier) $
-                                  (Pi (bind (varY, embed carrier)
-                                    (Pi (bind (string2Name "rpf", embed (App (App rel (Var varX)) (Var varY)))
-                                      (TyEq (App s (Var varX)) (App s (Var varY)) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
+  (arsp, tyRsp) <-
+    checkType rsp
+    . Pi . bind (varX, embed carrier)
+    . Pi . bind (varY, embed carrier)
+    . Pi . bind (varRpf, embed $ rel @. varX @. varY)
+    $  (s @. varX, tyPx) ==. (s @. varY, tyPy)
 
-  nf <- whnf (App p q)
+  nf <- whnf $ p @. q
   return (QElim ap as arsp aq, nf)
 
 tcTerm (Pi bnd) Nothing = do
@@ -129,7 +132,7 @@ tcTerm (App t1 t2) Nothing = do
   (at1, ty1)             <- inferType t1
   (x, tyA, tyB, mc) <- ensurePi ty1
   (at2, ty2)             <- checkType t2 tyA
-  let result = (App at1 $ at2, subst x at2 tyB)
+  let result = (at1 @. at2, subst x at2 tyB)
 
   -- if the function has a constrained type
   -- make sure that it is satisfied
@@ -398,7 +401,7 @@ tcTerm (TyEq a b (Annot mtyA) (Annot mtyB)) ann2 = do
   (nb, tyB) <- tcTerm b mtyB
   (_, i) <- tcType tyA
   (_, j) <- tcType tyB
-  return (TyEq na nb (Annot $ Just tyA) (Annot $ Just tyB), Type (max i j))
+  return $ ((na, tyA) ==. (nb, tyB), Type (max i j))
 
 tcTerm (Subst tm p mbnd) Nothing = do
   -- infer the type of the proof p

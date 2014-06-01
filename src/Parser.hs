@@ -434,9 +434,7 @@ tconapp = TCon <$> tconstructor <*> many factor
 funapp :: LParser Term
 funapp = do
   f <- factor
-  foldl' app f <$> many factor
-  where
-    app e1 e2  =  App e1 e2
+  foldl' App f <$> many factor
 
 factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , typen      <?> "Type n"

@@ -10,7 +10,7 @@ import Syntax
 import Environment
 
 import Unbound.LocallyNameless hiding (Data, Refl)
-import Control.Monad.Error (catchError, zipWithM, zipWithM_)
+import Control.Monad.Error (zipWithM, zipWithM_)
 import Control.Applicative ((<$>), (<*>), (<$), pure)
 import Debug.Trace
 
@@ -187,8 +187,8 @@ whnf :: Term -> TcMonad Term
 whnf (Var x) = do
   maybeDef <- lookupDef x
   case maybeDef of
-    (Just d) -> whnf d
-    _ -> return (Var x)
+    Just d -> whnf d
+    _ -> return $ Var x
 
 whnf (App t1 t2) = do
   nf <- whnf t1
@@ -203,24 +203,24 @@ whnf (App t1 t2) = do
       case nf2 of
         DCon{} -> do
           ((f,x),body) <- unbind bnd
-          whnf $ subst x nf2 $ subst f nf body
-        _ -> return $ App nf t2
+          whnf . subst x nf2 $ subst f nf body
+        _ -> return $ nf @. t2
 
-    _ -> return $ App nf t2
+    _ -> return $ nf @. t2
 
 whnf (Pcase a bnd ann) = do
   nf <- whnf a
   case nf of
     Prod b c _ -> do
       ((x,y), body) <- unbind bnd
-      whnf (subst x b (subst y c body))
-    _ -> return (Pcase nf bnd ann)
+      whnf . subst x b $ subst y c body
+    _ -> return $ Pcase nf bnd ann
 
 
 whnf (QElim p s rsp q) = do
   QBox x ann <- whnf q
   nx <- whnf x
-  whnf (App s nx)
+  whnf $ s @. nx
 
 whnf (Ann tm ty) = do
   tm' <- whnf tm
@@ -248,8 +248,7 @@ whnf (Case scrut mtchs annot) = do
       f (Match bnd : alts) = (do
           (pat, br) <- unbind bnd
           ss <- patternMatches nf pat
-          whnf (substs ss br))
-            `catchError` \ _ -> f alts
+          whnf (substs ss br)) <|> f alts
       f [] = err $ [DS "Internal error: couldn't find a matching",
                     DS "branch for", DD nf, DS "in"] ++ map DD mtchs
     _ -> return (Case nf mtchs annot)
@@ -268,13 +267,12 @@ whnf (TyEq a b (Annot mtyA) (Annot mtyB)) = do
 
 whnf (TySquash a) = do
   na <- whnf a
-  return $
-    Quotient na $
-      Lam $
-        bind (string2Name "x", embed (Annot (Just na))) $
-          Lam $
-            bind (string2Name "y", embed (Annot (Just na))) $
-              TyUnit
+  let ann = Annot $ Just na
+  return
+    . Quotient na
+    . Lam . bind (string2Name "x", embed ann)
+    . Lam . bind (string2Name "y", embed ann)
+    $ TyUnit
 
 -- all other terms are already in WHNF
 whnf tm = return tm
@@ -286,7 +284,7 @@ resolveEq x y tyX tyY = do
   ntyX <- whnf tyX
   ntyY <- whnf tyY
 
-  let fallback = (equate nx ny >> return (Just TyUnit)) `catchError` (\e -> return Nothing)
+  let fallback = (equate nx ny >> return (Just TyUnit)) <|> return Nothing
 
   case (ntyX, ntyY) of
     (TyUnit, TyUnit) -> return $ Just TyUnit
@@ -295,26 +293,24 @@ resolveEq x y tyX tyY = do
       equate r1 r2
       case (nx, ny) of
         (QBox xa _, QBox xb _) ->
-          return $ Just $ App (App r1 xa) xb
+          return . Just $ r1 @. xa @. xb
         _ -> fallback
     (Pi bnd1, Pi bnd2) -> do
       ((xn, etyA1), tyB1) <- unbind bnd1
       ((yn, etyA2), tyB2) <- unbind bnd2
-      case (nx, ny) of
-        (Lam b1, Lam b2) ->
-          let body = TyEq (App nx (Var xn)) (App ny (Var yn)) (Annot (Just tyB1)) (Annot (Just tyB2)) in
-          return $ Just $ Pi $ bind (xn, etyA1) $
-                            Pi $ bind (yn, etyA2) $
-                              Pi $ bind (string2Name "pxy", embed $ TyEq (Var xn) (Var yn) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
-                                body
-        _ -> fallback
+      return . Just
+        . Pi . bind (xn, etyA1)
+        . Pi . bind (yn, etyA2)
+        . Pi . bind (string2Name "pxy", embed $ (xn, unembed etyA1) ==. (yn, unembed etyA2))
+        $ (nx @. xn, tyB1) ==. (ny @. yn, tyB2)
     (Sigma bnd1, Sigma bnd2) -> do
       ((_, eTyA1), tyB1) <- unbind bnd1
       ((_, eTyA2), tyB2) <- unbind bnd2
       case (nx, ny) of
         (Prod nx1 ny1 _, Prod nx2 ny2 _) ->
-          return $ Just $ Sigma $ bind (string2Name "px", embed $ TyEq nx1 nx2 (Annot $ Just $ unembed eTyA1) (Annot $ Just $ unembed eTyA2))
-                            (TyEq ny1 ny2 (Annot $ Just tyB1) (Annot $ Just tyB2))
+          return . Just
+            . Sigma . bind (string2Name "px", embed $ (nx1, unembed eTyA1) ==. (nx2, unembed eTyA2))
+            $ (ny1, tyB1) ==. (ny2, tyB2)
         _ -> fallback
     _ -> fallback
 

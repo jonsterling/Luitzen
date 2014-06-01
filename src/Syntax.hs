@@ -103,6 +103,22 @@ data Term =
       -- ^ constrained function type '[ x : Nat | x < y ] -> B'
    deriving Show
 
+class TermLike t where
+  embedTerm :: t -> Term
+
+
+(@.) :: (TermLike u, TermLike v) => u -> v -> Term
+(embedTerm -> f) @. (embedTerm -> x) = App f x
+infixl @.
+
+(==.) :: (TermLike a, TermLike b, TermLike c, TermLike d) => (a, b) -> (c, d) -> Term
+(embedTerm -> x, embedTerm -> s) ==. (embedTerm -> y, embedTerm -> t) = TyEq x y (Annot $ Just s) (Annot $ Just t)
+
+instance TermLike Term where
+  embedTerm = id
+instance TermLike TName where
+  embedTerm = Var
+
 -- | An 'Annot' is optional type information
 newtype Annot = Annot (Maybe Term) deriving Show
 
