@@ -93,11 +93,11 @@ hPlus0plus0' =
     case x of
       zero -> induction [y]
       succ n -> case y of
-        zero -> trivial
+        zero -> _
         succ m -> resp ℕ ℕ (plus0 n) (plus0' m) (\y. succ y) (hPlus0plus0' n m (resp ℕ ℕ x y pred xy))
 
 plus0plus0' : plus0 = plus0'
-plus0plus0' = trivial
+plus0plus0' = _
 
 testSubst : ℕ
 testSubst = subst 0 by plus0plus0' at h. ℕ
