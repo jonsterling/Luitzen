@@ -94,7 +94,7 @@ hPlus0plus0' =
       zero -> induction [y]
       succ n -> case y of
         zero -> trivial
-        succ m -> resp [ℕ] [ℕ] [plus0 n] [plus0' m] (\y. succ y) (hPlus0plus0' n m (resp [ℕ] [ℕ] [x] [y] pred xy))
+        succ m -> resp ℕ ℕ (plus0 n) (plus0' m) (\y. succ y) (hPlus0plus0' n m (resp ℕ ℕ x y pred xy))
 
 plus0plus0' : plus0 = plus0'
 plus0plus0' = trivial

@@ -83,11 +83,6 @@ instance Disp [D] where
   disp dl = sep $ map disp dl
 
 
-instance Disp Epsilon where
-  disp Erased = text "-"
-  disp Runtime = text "+"
-
-
 -------------------------------------------------------------------------
 -- Modules and Decls
 -------------------------------------------------------------------------
@@ -104,7 +99,7 @@ instance Disp [Decl] where
   disp = vcat . map disp
 
 instance Disp Decl where
-  disp (Def n r@(Ind _ bnd _)) |
+  disp (Def n r@(Ind bnd _)) |
       name2String(fst(fst(unsafeUnbind bnd)))==name2String n = disp r
   disp (Def n term) = disp n <+> text "=" <+> disp term
 
@@ -182,13 +177,11 @@ instance Display Bool where
 -------------------------------------------------------------------------
 
 
-bindParens :: Epsilon -> Doc -> Doc
-bindParens Runtime d = d
-bindParens Erased  d = brackets d
+bindParens :: Doc -> Doc
+bindParens d = d
 
-mandatoryBindParens :: Epsilon -> Doc -> Doc
-mandatoryBindParens Runtime d = parens d
-mandatoryBindParens Erased  d = brackets d
+mandatoryBindParens :: Doc -> Doc
+mandatoryBindParens d = parens d
 
 instance Display Annot where
   display (Annot Nothing)  = return $ empty
@@ -199,28 +192,28 @@ instance Display Annot where
       else return $ empty
 
 instance Display Arg where
-  display arg@(Arg ep t) = do
+  display arg@(Arg t) = do
     st <- ask
     let annotParens = if showAnnots st
                    then mandatoryBindParens
                    else bindParens
-    let wraparg (Arg ep x) = case x of
-              Var _       -> bindParens ep
-              TCon _ []   -> bindParens ep
-              Type 0      -> bindParens ep
-              TyEmpty     -> bindParens ep
-              TyUnit      -> bindParens ep
-              LitUnit     -> bindParens ep
-              Sigma _     -> bindParens ep
+    let wraparg (Arg x) = case x of
+              Var _       -> bindParens
+              TCon _ []   -> bindParens
+              Type 0      -> bindParens
+              TyEmpty     -> bindParens
+              TyUnit      -> bindParens
+              LitUnit     -> bindParens
+              Sigma _     -> bindParens
 
-              Pos _ a     -> wraparg (Arg ep a)
+              Pos _ a     -> wraparg (Arg a)
 
-              DCon _ [] _ -> annotParens ep
-              Prod _ _ _  -> annotParens ep
-              TrustMe _   -> annotParens ep
-              OrdAx _     -> annotParens ep
+              DCon _ [] _ -> annotParens
+              Prod _ _ _  -> annotParens
+              TrustMe _   -> annotParens
+              OrdAx _     -> annotParens
 
-              _           -> mandatoryBindParens ep
+              _           -> mandatoryBindParens
     wraparg arg <$> display t
 
 
@@ -271,32 +264,32 @@ instance Display Term where
     dx <- display x
     return $ text "expose" <+> dx <+> text "under" <+> dp <+> text "with" <+> ds <+> text "by" <+> drsp
 
-  display (Pi ep bnd) = do
+  display (Pi bnd) = do
      lunbind bnd $ \((n,a), b) -> do
         da <- display (unembed a)
         dn <- display n
         db <- display b
-        let lhs = mandatoryBindParens ep $
+        let lhs = mandatoryBindParens $
               if (n `elem` fv b) then
                 (dn <+> colon <+> da)
               else
                 da
         return $ lhs <+> text "->" <+> db
 
-  display (PiC ep bnd) = do
+  display (PiC bnd) = do
      lunbind bnd $ \((n,a), (c, b)) -> do
         da <- display (unembed a)
         dn <- display n
         db <- display b
         dc <- display c
-        let lhs = mandatoryBindParens ep $
+        let lhs = mandatoryBindParens $
               if (n `elem` fv b) then
                 (dn <+> colon <+> da)
               else
                 da
         return $ lhs <+> text "|" <+> dc <+> text "->" <+> db
 
-  display a@(Lam ep b) = do
+  display a@(Lam b) = do
     (binds, body) <- gatherBinders a
     return $ hang (sep binds) 2 body
 
@@ -319,14 +312,14 @@ instance Display Term where
     dann <- display ann
     return $ text "ord" <+> dann
 
-  display (Ind ep binding annot) =
+  display (Ind binding annot) =
     lunbind binding $ \ ((n,x),body) -> do
       dn <- display n
 --      return dn
       dx <- display x
       db <- display body
       dann <- display annot
-      return $ text "ind" <+> dn <+> bindParens ep dx <+> text "="
+      return $ text "ind" <+> dn <+> bindParens dx <+> text "="
                <+> db <+> dann
 
 
@@ -345,13 +338,13 @@ instance Display Term where
 
   display (Pos _ e) = display e
 
-  display (Let ep bnd) = do
+  display (Let bnd) = do
 
     lunbind bnd $ \ ((x,a) , b) -> do
      da <- display (unembed a)
      dx <- display x
      db <- display b
-     return $  sep [text "let" <+> bindParens ep dx
+     return $  sep [text "let" <+> bindParens dx
                     <+> text "=" <+> da
                     <+> text "in",
                     db]
@@ -448,39 +441,36 @@ instance Display Pattern where
   display (PatVar x) = display x
 
 
-instance Display a => Display (a, Epsilon) where
-  display (t, ep) = bindParens ep <$> display t
-
 instance Disp Arg where
-  disp (Arg ep t) = bindParens ep $ disp t
+  disp (Arg t) = bindParens $ disp t
 
 instance Display Telescope where
   display Empty = return empty
-  display (Cons ep bnd) = goTele ep bnd
+  display (Cons bnd) = goTele bnd
 
 goTele :: (IsEmbed t, Alpha t, Display t1,
            Display (Embedded t), Display t2) =>
-          Epsilon -> Rebind (t1, t) t2 -> M Doc
-goTele ep bnd = do
+          Rebind (t1, t) t2 -> M Doc
+goTele bnd = do
       let ((n, unembed->ty), tele) = unrebind bnd
       dn <- display n
       dty <- display ty
       dtele <- display tele
-      return $ mandatoryBindParens ep (dn <+> colon <+> dty) <+> dtele
+      return $ mandatoryBindParens (dn <+> colon <+> dty) <+> dtele
 
 gatherBinders :: Term -> M ([Doc], Doc)
-gatherBinders (Lam ep b) =
+gatherBinders (Lam b) =
    lunbind b $ \((n,unembed->ma), body) -> do
       dn <- display n
       dt <- display ma
       (rest, body) <- gatherBinders body
-      return $ (text "\\" <> bindParens ep (dn <+> dt) <+> text "." : rest, body)
-gatherBinders (Ind ep binding ann) =
+      return $ (text "\\" <> bindParens (dn <+> dt) <+> text "." : rest, body)
+gatherBinders (Ind binding ann) =
   lunbind binding $ \ ((n,x),body) -> do
       dn <- display n
       dx <- display x
       (rest,body) <- gatherBinders body
-      return (text "ind" <+> dn <+> bindParens ep dx <+> text "=" : rest,
+      return (text "ind" <+> dn <+> bindParens dx <+> text "=" : rest,
               body)
 
 gatherBinders body = do

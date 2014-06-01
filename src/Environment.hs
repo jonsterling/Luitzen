@@ -197,7 +197,7 @@ extendCtxsGlobal ds =
 -- | Extend the context with a telescope
 extendCtxTele :: (MonadReader Env m) => Telescope -> m a -> m a
 extendCtxTele Empty m = m
-extendCtxTele (Cons _ (unrebind -> ((x,unembed->ty),tele))) m =
+extendCtxTele (Cons (unrebind -> ((x,unembed->ty),tele))) m =
   extendCtx (Sig x ty) $ extendCtxTele tele m
 
 -- | Extend the context with a module

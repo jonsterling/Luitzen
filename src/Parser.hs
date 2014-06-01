@@ -83,13 +83,6 @@ Optional components in this BNF are marked with < >
     | ( x : A | C) -> B        Constrained type
     | a < b                    Ordering constrant
 
-    | \ [x <:A> ] . a          Erased lambda
-    | a [b]                    Erased application
-    | [x : A] -> B             Erased pi
-    | let [x] = a in b         Erased let
-    | ind f [x] = a            Erased ind
-
-
 
   declarations:
 
@@ -106,10 +99,8 @@ Optional components in this BNF are marked with < >
   telescopes:
     D ::=
                                Empty
-     | (x : A) D               runtime cons
+     | (x : A) D               cons
      | (A) D
-     | [x : A] D               erased cons
-     | [A] D
 
   Syntax sugar:
 
@@ -203,7 +194,6 @@ trellysStyle = Token.LanguageDef
                   ,"subst", "by", "at"
                   ,"let", "in"
                   ,"axiom"
-                  ,"erased"
                   ,"TRUSTME"
                   ,"ord"
                   ,"pcase"
@@ -294,7 +284,7 @@ natenc =
   do n <- natural
      return $ encode n
    where encode 0 = DCon "zero" [] natty
-         encode n = DCon "succ" [Arg Runtime (encode (n-1))] natty
+         encode n = DCon "succ" [Arg (encode (n-1))] natty
          natty    = Annot $ Just (TCon (string2Name "ℕ") [])
 
 moduleImports :: LParser Module
@@ -323,20 +313,20 @@ telescope :: LParser Telescope
 telescope = do
   bindings <- telebindings
   return $ foldr g Empty bindings where
-    g (n, t, ep) rst = Cons ep (rebind (n, embed t) rst)
+    g (n, t) rst = Cons (rebind (n, embed t) rst)
 
-telebindings :: LParser [(TName, Term, Epsilon)]
+telebindings :: LParser [(TName, Term)]
 telebindings = many teleBinding
   where
-    annot :: Epsilon -> LParser (TName, Term, Epsilon)
-    annot ep = do
+    annot :: LParser (TName, Term)
+    annot = do
       (x,ty) <-    try ((,) <$> varOrWildcard      <*> (colon >> expr))
                 <|>    ((,) <$> fresh wildcardName <*> expr)
-      return (x,ty,ep)
-    teleBinding :: LParser (TName, Term,Epsilon)
+      return (x,ty)
+    teleBinding :: LParser (TName, Term)
     teleBinding =
-      (    parens (annot Runtime)
-       <|> brackets (annot Erased)) <?> "binding"
+      (    parens annot
+       <|> brackets annot) <?> "binding"
 
 ---
 --- Top level declarations
@@ -373,7 +363,7 @@ sigDef = do
 valDef = Def <$> try (variable <* reservedOp "=") <*> expr
 
 indDef = do
-  r@(Ind _ b _) <- ind
+  r@(Ind b _) <- ind
   let ((n,_),_) = unsafeUnbind b
   return $ Def n r
 
@@ -424,7 +414,7 @@ expr = Pos <$> getPosition <*> buildExpressionParser table term
         mkArrow  =
           do n <- fresh wildcardName
              return $ \tyA tyB ->
-               Pi Runtime (bind (n,embed tyA) tyB)
+               Pi (bind (n,embed tyA) tyB)
 
 -- A "term" is either a function application or a constructor
 -- application.  Breaking it out as a seperate category both
@@ -433,7 +423,7 @@ expr = Pos <$> getPosition <*> buildExpressionParser table term
 term = try dconapp <|> try tconapp <|> funapp
 
 arg :: LParser Arg
-arg = Arg Erased <$> brackets expr <|> Arg Runtime <$> factor
+arg = Arg <$> brackets expr <|> Arg <$> factor
 
 dconapp :: LParser Term
 dconapp = DCon <$> dconstructor <*> many arg <*> return (Annot Nothing)
@@ -444,10 +434,9 @@ tconapp = TCon <$> tconstructor <*> many factor
 funapp :: LParser Term
 funapp = do
   f <- factor
-  foldl' app f <$> many bfactor
-  where bfactor = ((,Erased)  <$> brackets expr) <|>
-                  ((,Runtime) <$> factor)
-        app e1 (e2,ep)  =  App e1 (Arg ep e2)
+  foldl' app f <$> many factor
+  where
+    app e1 e2  =  App e1 (Arg e2)
 
 factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , typen      <?> "Type n"
@@ -475,41 +464,17 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                     <?> "an explicit function type or annotated expression"
                 ]
 
-{-
-impBind,expBind :: LParser (TName,Epsilon,Term)
-impBind = brackets $ do
-  x <- variable
-  colon
-  ty <- expr
-  return (x,Erased,ty)
-
-expBind = try (parens $ do
-  x <- variable
-  colon
-  ty <- expr
-  return (x,Runtime,ty))
-
-impOrExpBind :: LParser (TName,Epsilon,Term)
-impOrExpBind = impBind <|> expBind
--}
-
-
-impOrExpVar :: LParser (TName, Epsilon)
-impOrExpVar = try ((,Erased) <$> brackets variable)
-              <|> (,Runtime) <$> variable
-
-
 typen :: LParser Term
 typen = Type <$> (reserved "Type" *> (try natural <|> return 0))
 
 -- Lambda abstractions have the syntax '\x . e'
 lambda :: LParser Term
 lambda = do reservedOp "\\"
-            binds <- many1 impOrExpVar
+            binds <- many1 variable
             dot
             body <- expr
             return $ foldr lam body binds where
-    lam (x, ep) m = Lam ep (bind (x, embed $ Annot Nothing) m)
+    lam x m = Lam (bind (x, embed $ Annot Nothing) m)
 
 
 ordax :: LParser Term
@@ -520,10 +485,10 @@ ind :: LParser Term
 ind = do
   reserved "ind"
   f <- variable
-  (x, ep) <- impOrExpVar
+  x <- variable
   reservedOp "="
   body <- expr
-  return $ Ind ep (bind (f,x) body) $ Annot Nothing
+  return $ Ind (bind (f,x) body) $ Annot Nothing
 
 
 bconst  :: LParser Term
@@ -534,12 +499,12 @@ bconst = choice [TyEmpty <$ reserved "Zero",
 letExpr :: LParser Term
 letExpr =
   do reserved "let"
-     (x,ep) <- impOrExpVar
+     x <- variable
      reservedOp "="
      boundExp <- expr
      reserved "in"
      body <- expr
-     return $ Let ep $ bind (x,embed boundExp) body
+     return $ Let $ bind (x,embed boundExp) body
 
 -- impProd - implicit dependent products
 -- These have the syntax [x:a] -> b or [a] -> b .
@@ -551,8 +516,8 @@ impProd =
      optional (reservedOp "->")
      tyB <- expr
      return $ case mc of
-       Just c  -> PiC Erased (bind (x,embed tyA) (c,tyB))
-       Nothing -> Pi Erased (bind (x,embed tyA) tyB)
+       Just c  -> PiC (bind (x,embed tyA) (c,tyB))
+       Nothing -> Pi (bind (x,embed tyA) tyB)
 
 qboxExpr :: LParser Term
 qboxExpr = do
@@ -601,18 +566,16 @@ expProdOrAnnotOrParens =
        case bd of
          Colon (Var x) a ->
            option (Ann (Var x) a)
-                  (Pi Runtime <$> (bind (x, embed a) <$> afterBinder))
+                  (Pi <$> (bind (x, embed a) <$> afterBinder))
          Colon a b -> return $ Ann a b
          Comma a b -> return $ Prod a b (Annot Nothing)
          Nope a    -> return $ a
 
 pattern :: LParser Pattern
 -- Note that 'dconstructor' and 'variable' overlaps, annoyingly.
-pattern =  try (PatCon <$> dconstructor <*> many arg_pattern)
+pattern =  try (PatCon <$> dconstructor <*> many atomic_pattern)
        <|> atomic_pattern
   where
-    arg_pattern    =  ((,Erased) <$> brackets pattern)
-                  <|> ((,Runtime) <$> atomic_pattern)
     atomic_pattern =  parens pattern
                   <|> (PatVar <$> wildcard)
                   <|> do t <- varOrCon

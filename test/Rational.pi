@@ -4,7 +4,7 @@ import Integer
 import Nat
 
 ℕ⁺ : Type
-ℕ⁺ = {d : ℕ & [d = zero] -> Zero}
+ℕ⁺ = {d : ℕ & (d = zero) -> Zero}
 
 PreRational : Type
 PreRational = {n : ℤ & ℕ⁺}
@@ -20,10 +20,10 @@ PreRational = {n : ℤ & ℕ⁺}
 ℚ = PreRational // ~ℚ
 
 oneHalf : ℚ
-oneHalf = <(pos 1, (2, \[p]. contra p))>
+oneHalf = <(pos 1, (2, \p. contra p))>
 
 twoFourths : ℚ
-twoFourths = <(pos 2, (4, \[p]. contra p))>
+twoFourths = <(pos 2, (4, \p. contra p))>
 
 oneHalfEqualsTwoFourths : oneHalf = twoFourths
 oneHalfEqualsTwoFourths = refl _

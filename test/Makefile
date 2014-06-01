@@ -13,7 +13,7 @@
 SHELL=/bin/bash
 
 # PASS are tests that *should* always pass.
-PASS=Equality Product Nat Fin Vec
+PASS=Equality Bool Nat Rational
 
 # TODO_FAIL are tests that *should* fail but currently pass.
 TODO_FAIL=
@@ -21,8 +21,8 @@ TODO_FAIL=
 TODO_PASS=
 # stale?
 UNKNOWN=
-# A symlink to the local pi-forall, installed by top level make.
-PI=../dist/build/pi-forall/pi-forall
+# A symlink to the local luitzen, installed by top level make.
+PI=../dist/build/luitzen/luitzen
 # typecheck *quietly*
 TYPECHECK=$(PI) 1>/dev/null # 2>&1
 
