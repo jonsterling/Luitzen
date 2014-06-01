@@ -133,10 +133,7 @@ ind minus_same_zero n =
         (subst ih by x at h. (h = 0))
 
 lemma_minus_zero_id : (n : ℕ) -> (minus n 0 = n)
-lemma_minus_zero_id =   \n . case n of
-    zero -> (refl : minus 0 0 = 0)
-    succ n' -> (refl : minus (succ n') 0 = succ n')
-
+lemma_minus_zero_id = \n . induction [n]
 
 lemma_minus_plus_id : (m : ℕ) -> (n : ℕ) -> ((minus (plus m n) m) = n)
 ind lemma_minus_plus_id m = \n .
