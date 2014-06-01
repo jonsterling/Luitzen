@@ -48,4 +48,11 @@ exposeInterval = \i. expose i under \x. Bool with \x. true by \x y rpf. refl
 testExposure : exposeInterval <true> = true
 testExposure = refl
 
+exUnion1 : ⋃[i : Bool]{ Bool }
+exUnion1 = ({true}, true)
 
+exUnion2 : ⋃[i : Bool]{ Bool }
+exUnion2 = ({false}, true)
+
+exUnionGlue : exUnion1 = exUnion2
+exUnionGlue = trivial

@@ -373,6 +373,20 @@ instance Display Term where
       dB <- display tyB
       return $ text "{" <+> dx <+> text ":" <+> dA
         <+> text "|" <+> dB <+> text "}"
+
+  display (Union bnd) =
+    lunbind bnd $ \ ((x,unembed->tyA),tyB) -> do
+      dx <- display x
+      dA <- display tyA
+      dB <- display tyB
+      return $ text "⋃[" <+> dx <+> text ":" <+> dA <+> text "]"
+        <+> text "{" <+> dB <+> text "}"
+
+  display (UnionLit a b ann) = do
+    da <- display a
+    db <- display b
+    return . parens $ text "{" <+> da <+> text "}" <+> text "," <+> db
+
   display (Prod a b ann) = do
     da <- display a
     db <- display b

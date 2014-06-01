@@ -65,6 +65,12 @@ equate t1 t2 = do
           equate tyA1 tyA2
           equate tyB1 tyB2
 
+        (Union bnd1, Union bnd2) -> do
+          Just ((x, unembed -> tyA1), tyB1,
+                (_, unembed -> tyA2), tyB2) <- unbind2 bnd1 bnd2
+          equate tyA1 tyA2
+          equate tyB1 tyB2
+
         (Prod a1 b1 _, Prod a2 b2 _) -> do
           equate a1 a2
           equate b1 b2
@@ -312,6 +318,16 @@ resolveEq x y tyX tyY = do
             . Sigma . bind (string2Name "px", embed $ (nx1, unembed eTyA1) ==. (nx2, unembed eTyA2))
             $ (ny1, tyB1) ==. (ny2, tyB2)
         _ -> fallback
+
+    (Union bnd1, Union bnd2) -> do
+      ((_, eTyA1), tyB1) <- unbind bnd1
+      ((_, eTyA2), tyB2) <- unbind bnd2
+      case (nx, ny) of
+        (UnionLit _ ny1 _, UnionLit _ ny2 _) ->
+          return . Just $ (ny1, tyB1) ==. (ny2, tyB2)
+        _ -> fallback
+
+
     _ -> fallback
 
 -- | Determine whether the pattern matches the argument

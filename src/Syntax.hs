@@ -45,6 +45,7 @@ data Term =
    | App Term Term                      -- ^ application
    | Type Int                           -- ^ universe level
    | Pi  (Bind (TName, Embed Term) Term) -- ^ function type
+   | Union (Bind (TName, Embed Term) Term) -- ^ dependent union type
 
    | Quotient Term Term        -- ^ quotient type `A // R`
    | QBox Term Annot           -- ^ quotient introduction `<x:Q>`
@@ -69,6 +70,8 @@ data Term =
 
    | Let (Bind (TName, Embed Term) Term)
      -- ^ let expression, introduces a new definition in the ctx
+
+   | UnionLit Term Term Annot
 
    | Sigma (Bind (TName, Embed Term) Term)
      -- ^ sigma type '{ x : A | B }'

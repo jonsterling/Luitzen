@@ -416,13 +416,28 @@ tcTerm t@(Contra p ann1) ann2 =  do
         (_,_) -> err [DS "I can't tell that", DD a, DS "and", DD b,
                       DS "are contradictory"]
 
+tcTerm t@(Union bnd) Nothing = do
+  ((x, unembed->tyA), tyB) <- unbind bnd
+  (aa, i) <- tcType tyA
+  (ba, j) <- extendCtx (Sig x aa) $ tcType tyB
+  return (Union (bind (x, embed aa) ba), Type (max i j))
+
+tcTerm t@(UnionLit a b ann1) ann2 = do
+  ann <- matchAnnots ann1 ann2
+  case ann of
+    Nothing -> err [DS "Cannot check term", DD t, DS "without annotation"]
+    Just ty@(Union bnd) -> do
+      ((x, unembed -> tyA), tyB) <- unbind bnd
+      (aa,_) <- checkType a tyA
+      (ba,_) <- extendCtxs [Sig x tyA, Def x aa] $ checkType b tyB
+      return (UnionLit aa ba (Annot ann), ty)
+    Just ty -> err [DS "Union literals must have union type", DD ty, DS "found instead"]
 
 tcTerm t@(Sigma bnd) Nothing = do
   ((x,unembed->tyA),tyB) <- unbind bnd
   (aa, i) <- tcType tyA
   (ba, j) <- extendCtx (Sig x aa) $ tcType tyB
   return (Sigma (bind (x,embed aa) ba), Type (max i j))
-
 
 tcTerm t@(Prod a b ann1) ann2 = do
   ann <- matchAnnots ann1 ann2
