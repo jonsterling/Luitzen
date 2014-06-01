@@ -94,8 +94,6 @@ data Term =
 
    | Smaller Term Term
       -- ^ The structural order type, @a < b@
-   | OrdAx Annot
-      -- ^ Constructor for ord type:  x < C .. x ..
    | Ind (Bind (TName, TName) Term) Annot
       -- ^ inductive definition, binds function name and argument in term
    | PiC (Bind (TName, Embed Term)

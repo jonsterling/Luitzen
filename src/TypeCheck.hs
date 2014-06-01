@@ -277,25 +277,6 @@ tcTerm (Smaller a b) Nothing = do
   (ab,bTy) <- checkType b aTy
   return (Smaller aa ab, Type 0)
 
-tcTerm (OrdAx ann1) ann2 = do
-  let subterm y [] = False
-      subterm y (y' : ys) | y `aeq` y' = True
-      subterm y (_ : ys) = subterm y ys
-
-  ann <- matchAnnots ann1 ann2
-  case ann of
-    Just sm@(Smaller x y) -> do
-      x' <- whnf x
-      y' <- whnf y
-      case y' of
-        (DCon _ args _) | x' `subterm` args ->
-          return (OrdAx (Annot ann), sm)
-        _ -> err [DS "ord must be used at type 'a < C ... a ...'",
-                    DS "Instead, the type", DD sm, DS "was expected."]
-    Just sm -> err [DS "ord must be used at type 'a < C ... a ...'",
-                    DS "Instead, the type", DD sm, DS "was expected."]
-    Nothing -> err [DS "Cannot figure out type of ord."]
-
 tcTerm (Ind bnd ann1) ann2 = do
   ann <- matchAnnots ann1 ann2
   case ann of

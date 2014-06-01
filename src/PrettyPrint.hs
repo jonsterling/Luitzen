@@ -280,10 +280,6 @@ instance Display Term where
     dev <- display evidence
     return $ text "refl" <+> dev
 
-  display (OrdAx ann) = do
-    dann <- display ann
-    return $ text "ord" <+> dann
-
   display (Ind binding annot) =
     lunbind binding $ \ ((n,x),body) -> do
       dn <- display n

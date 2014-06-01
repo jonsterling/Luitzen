@@ -450,7 +450,6 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , squashTy   <?> "a squash type"
                 , qboxExpr   <?> "a quotient box"
                 , substExpr  <?> "a subst"
-                , ordax      <?> "ord"
                 , refl       <?> "refl"
                 , trivialTactic <?> "the trivial tactic"
                 , inductionTactic <?> "the induction tactic"
@@ -474,9 +473,6 @@ lambda = do reservedOp "\\"
             return $ foldr lam body binds where
     lam x m = Lam (bind (x, embed $ Annot Nothing) m)
 
-
-ordax :: LParser Term
-ordax = OrdAx (Annot Nothing) <$ reserved "ord"
 
 -- recursive abstractions, with the syntax 'ind f x = e', no type annotation.
 ind :: LParser Term
