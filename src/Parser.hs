@@ -284,7 +284,7 @@ natenc =
   do n <- natural
      return $ encode n
    where encode 0 = DCon "zero" [] natty
-         encode n = DCon "succ" [Arg (encode (n-1))] natty
+         encode n = DCon "succ" [encode (n-1)] natty
          natty    = Annot $ Just (TCon (string2Name "ℕ") [])
 
 moduleImports :: LParser Module
@@ -422,8 +422,8 @@ expr = Pos <$> getPosition <*> buildExpressionParser table term
 -- allows us to keep constructors fully applied in the abstract syntax.
 term = try dconapp <|> try tconapp <|> funapp
 
-arg :: LParser Arg
-arg = Arg <$> brackets expr <|> Arg <$> factor
+arg :: LParser Term
+arg = brackets expr <|> factor
 
 dconapp :: LParser Term
 dconapp = DCon <$> dconstructor <*> many arg <*> return (Annot Nothing)
@@ -436,7 +436,7 @@ funapp = do
   f <- factor
   foldl' app f <$> many factor
   where
-    app e1 e2  =  App e1 (Arg e2)
+    app e1 e2  =  App e1 e2
 
 factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , typen      <?> "Type n"

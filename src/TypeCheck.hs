@@ -78,18 +78,18 @@ tcTerm (QElim p s rsp q) Nothing = do
   let varX = string2Name "x"
   let varY = string2Name "Y"
 
-  tyPx <- whnf $ App p (Arg (QBox (Var varX) (Annot $ Just tyQ)))
-  tyPy <- whnf $ App p (Arg (QBox (Var varY) (Annot $ Just tyQ)))
+  tyPx <- whnf $ App p (QBox (Var varX) (Annot $ Just tyQ))
+  tyPy <- whnf $ App p (QBox (Var varY) (Annot $ Just tyQ))
 
   (ap, tyP) <- checkType p (Pi (bind (varX, embed tyQ) (Type 0)))
   (as, tyS) <- checkType s (Pi (bind (varX, embed carrier) tyPx))
 
   (arsp, tyRsp) <- checkType rsp $ Pi $ bind (varX, embed carrier) $
                                   (Pi (bind (varY, embed carrier)
-                                    (Pi (bind (string2Name "rpf", embed (App (App rel (Arg (Var varX))) (Arg (Var varY))))
-                                      (TyEq (App s (Arg (Var varX))) (App s (Arg (Var varY))) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
+                                    (Pi (bind (string2Name "rpf", embed (App (App rel (Var varX)) (Var varY)))
+                                      (TyEq (App s (Var varX)) (App s (Var varY)) (Annot $ Just tyPx) (Annot $ Just tyPy))))))
 
-  nf <- whnf (App p (Arg q))
+  nf <- whnf (App p q)
   return (QElim ap as arsp aq, nf)
 
 tcTerm (Pi bnd) Nothing = do
@@ -125,18 +125,18 @@ tcTerm (Lam bnd) Nothing = do
   return (Lam (bind (x, embed (Annot (Just atyA))) ebody),
           Pi (bind (x, embed atyA) atyB))
 
-tcTerm (App t1 (Arg t2)) Nothing = do
+tcTerm (App t1 t2) Nothing = do
   (at1, ty1)             <- inferType t1
   (x, tyA, tyB, mc) <- ensurePi ty1
   (at2, ty2)             <- checkType t2 tyA
-  let result = (App at1 $ Arg at2, subst x at2 tyB)
+  let result = (App at1 $ at2, subst x at2 tyB)
 
   -- if the function has a constrained type
   -- make sure that it is satisfied
   () <- case mc of
     Just constr@(Smaller b c) -> do
       let subterm y [] = False
-          subterm y (Arg y' : ys) | y `aeq` y' = True
+          subterm y (y' : ys) | y `aeq` y' = True
           subterm y (_ : ys) = subterm y ys
       b' <- whnf (subst x at2 b)
       c' <- whnf (subst x at2 c)
@@ -211,7 +211,7 @@ tcTerm t@(DCon c args ann1) ann2 = do
     -- so look up its type in the context
     (Just (TCon tname params)) -> do
       (delta, deltai) <- lookupDCon c tname
-      let numArgs   = teleLength deltai
+      let numArgs = teleLength deltai
       unless (length args == numArgs) $
         err [DS "Constructor", DS c,
              DS "should have", DD numArgs,
@@ -276,7 +276,7 @@ tcTerm (Smaller a b) Nothing = do
 
 tcTerm (OrdAx ann1) ann2 = do
   let subterm y [] = False
-      subterm y (Arg y' : ys) | y `aeq` y' = True
+      subterm y (y' : ys) | y `aeq` y' = True
       subterm y (_ : ys) = subterm y ys
 
   ann <- matchAnnots ann1 ann2
@@ -520,15 +520,15 @@ teleLength (Cons (unrebind->(_,tele'))) = 1 + teleLength tele'
 
 -- | type check a list of type constructor arguments against a telescope
 tsTele :: [Term] -> Telescope -> TcMonad [Term]
-tsTele tms tele = fmap unArg <$> tcArgTele (Arg <$> tms) tele
+tsTele tms tele = tcArgTele tms tele
 
 -- | type check a list of data constructor arguments against a telescope
-tcArgTele ::  [Arg] -> Telescope -> TcMonad [Arg]
+tcArgTele ::  [Term] -> Telescope -> TcMonad [Term]
 tcArgTele [] Empty = return []
-tcArgTele (Arg tm:terms) (Cons (unrebind->((x,unembed->ty),tele'))) = do
+tcArgTele (tm:terms) (Cons (unrebind->((x,unembed->ty),tele'))) = do
   (etm, ety) <- checkType tm ty
   eterms <- tcArgTele terms (subst x etm tele')
-  return $ Arg etm:eterms
+  return $ etm:eterms
 tcArgTele [] _ =
   err [DD "Too few arguments provided."]
 tcArgTele _ Empty =
@@ -577,13 +577,13 @@ pat2Term :: Pattern -> Type -> TcMonad Term
 pat2Term (PatCon dc pats) ty@(TCon n params) = do
   (delta, deltai) <- lookupDCon dc n
   let tele = substTele delta params deltai
-  let pats2Terms :: [Pattern] -> Telescope -> TcMonad [Arg]
+  let pats2Terms :: [Pattern] -> Telescope -> TcMonad [Term]
       pats2Terms [] Empty = return []
       pats2Terms (p : ps) (Cons (unrebind-> ((x,unembed->ty1), d))) = do
         ty' <- whnf ty1
         t <- pat2Term p ty'
         ts <- pats2Terms ps (subst x t d)
-        return (Arg t : ts)
+        return (t : ts)
       pats2Terms _ _ = err [DS "Invalid number of args to pattern", DD dc]
   args <- pats2Terms pats tele
   return $ DCon dc args $ Annot $ Just ty
@@ -607,7 +607,7 @@ equateWithPat (DCon dc args _) (PatCon dc' pats) (TCon n params)
           (++) <$> equateWithPat t p ty <*> eqWithPats ts ps (subst x t tl)
         eqWithPats _ _ _ =
           err [DS "Invalid number of args to pattern", DD dc]
-    eqWithPats (map unArg args) pats tele
+    eqWithPats args pats tele
 equateWithPat _ _ _ = return []
 
 -- | Check all of the types contained within a telescope returning

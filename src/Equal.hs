@@ -31,7 +31,7 @@ equate t1 t2 = do
           equate b1 b2
         (App a1 a2, App b1 b2) -> do
           equate a1 b1
-          equateArgs a2 b2
+          equate a2 b2
         (Type i, Type j) | i == j -> pure ()
         (Pi bnd1, Pi bnd2) -> do
           Just ((x, unembed -> tyA1), tyB1,
@@ -84,7 +84,7 @@ equate t1 t2 = do
         (TCon c1 ts1, TCon c2 ts2) | c1 == c2 ->
           zipWithM_ equate ts1 ts2
         (DCon d1 a1 _, DCon d2 a2 _) | d1 == d2 ->
-          zipWithM_ equateArgs a1 a2
+          zipWithM_ equate a1 a2
         (Case s1 brs1 ann1, Case s2 brs2 ann2)
           | length brs1 == length brs2 -> do
           equate s1 s2
@@ -117,9 +117,6 @@ equate t1 t2 = do
           err [DS "Expected", DD t2, DS "which normalizes to", DD n2,
                DS "but found", DD t1,  DS "which normalizes to", DD n1,
                DS "in context:", DD gamma]
-
-equateArgs :: Arg -> Arg -> TcMonad ()
-equateArgs (Arg t1) (Arg t2) = equate t1 t2
 
 -------------------------------------------------------
 
@@ -193,7 +190,7 @@ whnf (Var x) = do
     (Just d) -> whnf d
     _ -> return (Var x)
 
-whnf (App t1 arg@(Arg t2)) = do
+whnf (App t1 t2) = do
   nf <- whnf t1
   case nf of
     (Lam bnd) -> do
@@ -207,9 +204,9 @@ whnf (App t1 arg@(Arg t2)) = do
         DCon{} -> do
           ((f,x),body) <- unbind bnd
           whnf $ subst x nf2 $ subst f nf body
-        _ -> return $ App nf arg
+        _ -> return $ App nf t2
 
-    _ -> return $ App nf arg
+    _ -> return $ App nf t2
 
 whnf (Pcase a bnd ann) = do
   nf <- whnf a
@@ -223,7 +220,7 @@ whnf (Pcase a bnd ann) = do
 whnf (QElim p s rsp q) = do
   QBox x ann <- whnf q
   nx <- whnf x
-  whnf (App s (Arg nx))
+  whnf (App s nx)
 
 whnf (Ann tm ty) = do
   tm' <- whnf tm
@@ -250,7 +247,7 @@ whnf (Case scrut mtchs annot) = do
     (DCon d args _) -> f mtchs where
       f (Match bnd : alts) = (do
           (pat, br) <- unbind bnd
-          ss <- patternMatches (Arg nf) pat
+          ss <- patternMatches nf pat
           whnf (substs ss br))
             `catchError` \ _ -> f alts
       f [] = err $ [DS "Internal error: couldn't find a matching",
@@ -298,14 +295,14 @@ resolveEq x y tyX tyY = do
       equate r1 r2
       case (nx, ny) of
         (QBox xa _, QBox xb _) ->
-          return $ Just $ App (App r1 (Arg xa)) (Arg xb)
+          return $ Just $ App (App r1 xa) xb
         _ -> fallback
     (Pi bnd1, Pi bnd2) -> do
       ((xn, etyA1), tyB1) <- unbind bnd1
       ((yn, etyA2), tyB2) <- unbind bnd2
       case (nx, ny) of
         (Lam b1, Lam b2) ->
-          let body = TyEq (App nx (Arg (Var xn))) (App ny (Arg (Var yn))) (Annot (Just tyB1)) (Annot (Just tyB2)) in
+          let body = TyEq (App nx (Var xn)) (App ny (Var yn)) (Annot (Just tyB1)) (Annot (Just tyB2)) in
           return $ Just $ Pi $ bind (xn, etyA1) $
                             Pi $ bind (yn, etyA2) $
                               Pi $ bind (string2Name "pxy", embed $ TyEq (Var xn) (Var yn) (Annot $ Just $ unembed etyA1) (Annot $ Just $ unembed etyA2))
@@ -323,9 +320,9 @@ resolveEq x y tyX tyY = do
 
 -- | Determine whether the pattern matches the argument
 -- If so return the appropriate substitution
-patternMatches :: Arg -> Pattern -> TcMonad [(TName, Term)]
-patternMatches (Arg t) (PatVar x) = return [(x, t)]
-patternMatches (Arg t) pat@(PatCon d' pats) = do
+patternMatches :: Term -> Pattern -> TcMonad [(TName, Term)]
+patternMatches t (PatVar x) = return [(x, t)]
+patternMatches t pat@(PatCon d' pats) = do
   nf <- whnf t
   case nf of
     DCon d args _ | d == d' ->

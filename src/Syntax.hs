@@ -42,7 +42,7 @@ data Term =
      Var TName                          -- ^ variables
    | Lam (Bind (TName, Embed Annot) Term)
                                         -- ^ abstraction
-   | App Term Arg                       -- ^ application
+   | App Term Term                      -- ^ application
    | Type Int                           -- ^ universe level
    | Pi  (Bind (TName, Embed Term) Term) -- ^ function type
 
@@ -89,7 +89,7 @@ data Term =
 
    -- inductive datatypes
    | TCon TCName [Term]      -- ^ type constructors (fully applied)
-   | DCon DCName [Arg] Annot -- ^ term constructors (fully applied)
+   | DCon DCName [Term] Annot -- ^ term constructors (fully applied)
    | Case Term [Match] Annot -- ^ case analysis
 
    | Smaller Term Term
@@ -113,8 +113,6 @@ data Match = Match (Bind Pattern Term) deriving (Show)
 -- in their respective branches.
 data Pattern = PatCon DCName [Pattern]
              | PatVar TName deriving (Show, Eq)
-
-data Arg  = Arg Term deriving (Show)
 
 -----------------------------------------
 -- * Modules and declarations
@@ -182,10 +180,6 @@ wildcardName = string2Name "_"
 noAnn :: Annot
 noAnn = Annot Nothing
 
--- | Extract the term from an Arg
-unArg :: Arg -> Term
-unArg (Arg t) = t
-
 -- | Partial inverse of Pos
 unPos :: Term -> Maybe SourcePos
 unPos (Pos p _) = Just p
@@ -203,7 +197,7 @@ unPosFlaky t = fromMaybe (newPos "unknown location" 0 0) (unPosDeep t)
 isNumeral :: Term -> Maybe Int
 isNumeral (Pos _ t) = isNumeral t
 isNumeral (DCon c [] _) | c== "Zero" = Just 0
-isNumeral (DCon c [Arg t] _) | c==  "Succ" =
+isNumeral (DCon c [t] _) | c==  "Succ" =
   do n <- isNumeral t ; return (n+1)
 isNumeral _ = Nothing
 
@@ -232,7 +226,7 @@ instance Subst b SourcePos
 derive [''Term, ''Match,
         ''Pattern, ''Telescope, ''Module, ''TyCon, ''Decl,
         ''ConstructorNames, ''ModuleImport, ''ConstructorDef,
-        ''Arg, ''Annot]
+        ''Annot]
 
 -- Among other things, the Alpha class enables the following
 -- functions:
@@ -243,7 +237,6 @@ instance Alpha Term
 instance Alpha Match
 instance Alpha Pattern
 instance Alpha Telescope
-instance Alpha Arg
 instance Alpha ConstructorDef
 instance Alpha Annot
 
@@ -263,14 +256,13 @@ instance Subst Term Term where
 instance Subst Term Match
 instance Subst Term Pattern
 instance Subst Term Telescope
-instance Subst Term Arg
 instance Subst Term ConstructorDef
 instance Subst Term Annot
 
 -- | Substitute a list of terms for the variables bound in a telescope
 -- This is used to instantiate the parameters of a data constructor
 -- to find the types of its arguments.
-substTele :: Telescope -> [ Term ] -> Telescope -> Telescope
+substTele :: Telescope -> [Term] -> Telescope -> Telescope
 substTele tele args = substs (mkSubst tele args) where
   mkSubst Empty [] = []
   mkSubst (Cons (unrebind->((x,_),tele'))) (tm : tms) =

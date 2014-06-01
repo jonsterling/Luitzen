@@ -191,34 +191,6 @@ instance Display Annot where
          (text ":" <+>) <$> (display x)
       else return $ empty
 
-instance Display Arg where
-  display arg@(Arg t) = do
-    st <- ask
-    let annotParens = if showAnnots st
-                   then mandatoryBindParens
-                   else bindParens
-    let wraparg (Arg x) = case x of
-              Var _       -> bindParens
-              TCon _ []   -> bindParens
-              Type 0      -> bindParens
-              TyEmpty     -> bindParens
-              TyUnit      -> bindParens
-              LitUnit     -> bindParens
-              Sigma _     -> bindParens
-
-              Pos _ a     -> wraparg (Arg a)
-
-              DCon _ [] _ -> annotParens
-              Prod _ _ _  -> annotParens
-              TrustMe _   -> annotParens
-              OrdAx _     -> annotParens
-
-              _           -> mandatoryBindParens
-    wraparg arg <$> display t
-
-
-
-
 instance Display Term where
   display (Var n) = display n
 
@@ -440,9 +412,6 @@ instance Display Pattern where
       parens <$> ((<+>) <$> (display c) <*> (hsep <$> (mapM display args)))
   display (PatVar x) = display x
 
-
-instance Disp Arg where
-  disp (Arg t) = bindParens $ disp t
 
 instance Display Telescope where
   display Empty = return empty
