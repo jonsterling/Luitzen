@@ -1,0 +1,14 @@
+module Union where
+
+import Bool
+
+ex1 : ⋃[i : Bool]{ Bool }
+ex1 = ({true}, true)
+
+ex2 : ⋃[i : Bool]{ Bool }
+ex2 = ({false}, true)
+
+exGlue : ex1 = ex2
+exGlue = _
+
+

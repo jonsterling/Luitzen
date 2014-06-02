@@ -81,7 +81,6 @@ Optional components in this BNF are marked with < >
         C2 x [y]   -> b2
     | ind f x = a              Induction
     | ( x : A | C) -> B        Constrained type
-    | a < b                    Ordering constrant
 
 
   declarations:
@@ -203,7 +202,7 @@ trellysStyle = Token.LanguageDef
                   ,"Zero","One", "tt"
                   ]
                , Token.reservedOpNames =
-                 ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_", "[|", "|]", "|", "{", "}"]
+                 ["!","?","\\",":",".",",","<", "=", "+", "-", "^", "()", "_", "[|", "|]", "|", "{", "}", "⋃"]
                 }
 
 tokenizer :: Token.GenTokenParser String [Column] (StateT ConstructorNames FreshM)
@@ -447,6 +446,7 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , pcaseExpr  <?> "a pcase"
                 , exposeExpr <?> "an expose"
                 , sigmaTy    <?> "a sigma type"
+                , unionTy    <?> "a union type"
                 , squashTy   <?> "a squash type"
                 , qboxExpr   <?> "a quotient box"
                 , substExpr  <?> "a subst"
@@ -455,8 +455,8 @@ factor = choice [ varOrCon   <?> "a variable or nullary data constructor"
                 , inductionTactic <?> "the induction tactic"
                 , trustme    <?> "TRUSTME"
                 , hole       <?> "hole"
-                , impProd    <?> "an implicit function type"
                 , bconst     <?> "a constant"
+                , try unionLit   <?> "a union literal"
                 , expProdOrAnnotOrParens
                     <?> "an explicit function type or annotated expression"
                 ]
@@ -500,18 +500,6 @@ letExpr =
      body <- expr
      return $ Let $ bind (x,embed boundExp) body
 
--- impProd - implicit dependent products
--- These have the syntax [x:a] -> b or [a] -> b .
-impProd :: LParser Term
-impProd =
-  do (x,tyA, mc) <- brackets
-       (try ((,,) <$> variable <*> (colon >> expr) <*> return Nothing)
-        <|> ((,,) <$> fresh wildcardName <*> expr) <*> return Nothing)
-     optional (reservedOp "->")
-     tyB <- expr
-     return $ case mc of
-       Just c  -> PiC (bind (x,embed tyA) (c,tyB))
-       Nothing -> Pi (bind (x,embed tyA) tyB)
 
 qboxExpr :: LParser Term
 qboxExpr = do
@@ -532,6 +520,13 @@ exposeExpr = do
   reserved "by"
   rsp <- expr
   return $ QElim p s rsp q
+
+unionLit :: LParser Term
+unionLit = parens $ do
+  a <- braces expr
+  comma
+  b <- expr
+  return $ UnionLit a b (Annot Nothing)
 
 -- Function types have the syntax '(x:A) -> B'.  This production deals
 -- with the ambiguity caused because these types, annotations and
@@ -634,6 +629,22 @@ sigmaTy = do
   reservedOp "&"
   b <- expr
   reservedOp "}"
-  return (Sigma (bind (x, embed a) b))
+  return . Sigma $ bind (x, embed a) b
+
+unionOperator :: LParser ()
+unionOperator = reservedOp "⋃" <|> reservedOp "Union"
+
+unionTy :: LParser Term
+unionTy = do
+  unionOperator
+  reservedOp "["
+  x <- variable
+  colon
+  a <- expr
+  reservedOp "]"
+  reservedOp "{"
+  b <- expr
+  reservedOp "}"
+  return . Union $ bind (x, embed a) b
 
 

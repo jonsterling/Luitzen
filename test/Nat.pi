@@ -32,30 +32,16 @@ pred = \n . case n of
   zero -> zero
   succ n' -> n'
 
--- S m = S n -> m = n
---
--- Poor man's inversion.
---
--- This strategy provides inversion for any datatype constructor: refl and a
--- projection function (here pred).
---
--- There is a strong argument for adding a new expression form for such
--- inversions. :-)
-
-sm_eq_Sn__m_eq_n : (m:ℕ) -> (n:ℕ) -> (succ m = succ n) -> m = n
+sm_eq_Sn__m_eq_n : (m:ℕ) (n:ℕ) (succ m = succ n) -> m = n
 sm_eq_Sn__m_eq_n = \m n sm_eq_Sn .
   let pSm_eq_m    = (refl : pred (succ m) = m) in
   let pSn_eq_n    = (refl : pred (succ n) = n) in
-  let pSm_eq_pSn  = (subst refl by sm_eq_Sn
-                      at h.pred (succ m) = pred h) in
-  let m_eq_pSn    = subst pSm_eq_pSn
-                    by pSm_eq_m
-                    at h. h = pred (succ n) in
-  subst m_eq_pSn
-  by pSn_eq_n at h. m = h
+  let pSm_eq_pSn  = subst refl by sm_eq_Sn at h.pred (succ m) = pred h in
+  let m_eq_pSn    = subst pSm_eq_pSn by pSm_eq_m at h. h = pred (succ n) in
+  subst m_eq_pSn by pSn_eq_n at h. m = h
 
 
-m_eq_n_Sm_eq_Sn : (m:ℕ) -> (n:ℕ) -> m = n -> (succ m = succ n)
+m_eq_n_Sm_eq_Sn : (m:ℕ) (n:ℕ) m = n -> (succ m = succ n)
 m_eq_n_Sm_eq_Sn = \m n pf .
   subst refl by pf at x. (succ m = succ x)
 
@@ -93,11 +79,11 @@ hPlus0plus0' =
     case x of
       zero -> induction [y]
       succ n -> case y of
-        zero -> trivial
+        zero -> _
         succ m -> resp ℕ ℕ (plus0 n) (plus0' m) (\y. succ y) (hPlus0plus0' n m (resp ℕ ℕ x y pred xy))
 
 plus0plus0' : plus0 = plus0'
-plus0plus0' = trivial
+plus0plus0' = _
 
 testSubst : ℕ
 testSubst = subst 0 by plus0plus0' at h. ℕ
@@ -116,9 +102,10 @@ minus : ℕ -> ℕ -> ℕ
 ind minus n = \m .
    case n of
      zero -> zero
-     succ pred -> case m of
-                    zero -> n
-                    succ mpred -> minus pred mpred
+     succ pred ->
+       case m of
+         zero -> n
+         succ mpred -> minus pred mpred
 
 -------------------------------------------------------
 -- Reasoning about datatypes
@@ -133,10 +120,7 @@ ind minus_same_zero n =
         (subst ih by x at h. (h = 0))
 
 lemma_minus_zero_id : (n : ℕ) -> (minus n 0 = n)
-lemma_minus_zero_id =   \n . case n of
-    zero -> (refl : minus 0 0 = 0)
-    succ n' -> (refl : minus (succ n') 0 = succ n')
-
+lemma_minus_zero_id = \n . induction [n]
 
 lemma_minus_plus_id : (m : ℕ) -> (n : ℕ) -> ((minus (plus m n) m) = n)
 ind lemma_minus_plus_id m = \n .

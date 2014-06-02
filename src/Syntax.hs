@@ -1,6 +1,6 @@
 {- PiForall language, OPLSS, Summer 2013 -}
 
-{-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, FlexibleContexts, UndecidableInstances, ViewPatterns, EmptyDataDecls #-}
+{-# LANGUAGE TemplateHaskell, FlexibleInstances, MultiParamTypeClasses, FlexibleContexts, UndecidableInstances, ViewPatterns, EmptyDataDecls, TypeOperators, TypeFamilies, DataKinds #-}
 
 {-# OPTIONS_GHC -Wall -fno-warn-unused-matches -fno-warn-orphans #-}
 
@@ -38,13 +38,17 @@ type DCName = String
 -- * Core language
 -----------------------------------------
 
+type family a >> b where
+  a >> b = Bind (TName, Embed a) b
+
 data Term =
      Var TName                          -- ^ variables
-   | Lam (Bind (TName, Embed Annot) Term)
+   | Lam (Annot >> Term)
                                         -- ^ abstraction
    | App Term Term                      -- ^ application
    | Type Int                           -- ^ universe level
-   | Pi  (Bind (TName, Embed Term) Term) -- ^ function type
+   | Pi (Term >> Term)                     -- ^ function type
+   | Union (Term >> Term)                  -- ^ dependent union type
 
    | Quotient Term Term        -- ^ quotient type `A // R`
    | QBox Term Annot           -- ^ quotient introduction `<x:Q>`
@@ -67,10 +71,12 @@ data Term =
 
    | TySquash Term         -- ^ Squash types
 
-   | Let (Bind (TName, Embed Term) Term)
+   | Let (Term >> Term)
      -- ^ let expression, introduces a new definition in the ctx
 
-   | Sigma (Bind (TName, Embed Term) Term)
+   | UnionLit Term Term Annot
+
+   | Sigma (Term >> Term)
      -- ^ sigma type '{ x : A | B }'
    | Prod Term Term Annot
      -- ^ introduction for sigmas '( a , b )'
@@ -96,8 +102,7 @@ data Term =
       -- ^ The structural order type, @a < b@
    | Ind (Bind (TName, TName) Term) Annot
       -- ^ inductive definition, binds function name and argument in term
-   | PiC (Bind (TName, Embed Term)
-          (Term,Term))
+   | PiC (Term >> (Term, Term))
       -- ^ constrained function type '[ x : Nat | x < y ] -> B'
    deriving Show
 

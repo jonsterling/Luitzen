@@ -47,5 +47,3 @@ exposeInterval = \i. expose i under \x. Bool with \x. true by \x y rpf. refl
 -- A demonstration that quotient elimination computes.
 testExposure : exposeInterval <true> = true
 testExposure = refl
-
-
